@@ -7,3 +7,5 @@ target_sources(mgba_mcp_library PRIVATE
 target_include_directories(mgba_mcp_library PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
 )
+
+target_link_libraries(mgba_mcp_library PRIVATE mgba)
