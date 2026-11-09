@@ -1,9 +1,9 @@
-add_executable(mgba_mcp_cli)
+add_executable(mgba_server_cli)
 
-target_sources(mgba_mcp_cli PRIVATE
+target_sources(mgba_server_cli PRIVATE
     main.c
 )
 
-target_link_libraries(mgba_mcp_cli PRIVATE 
+target_link_libraries(mgba_server_cli PRIVATE
     mgba
 )

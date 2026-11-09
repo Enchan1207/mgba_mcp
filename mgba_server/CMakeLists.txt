@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 4.4.4)
 
 project(
-    mgba_mcp
+    mgba_server
     VERSION 0.1.0
     LANGUAGES C CXX
 )
@@ -20,13 +20,13 @@ FetchContent_MakeAvailable(mgba)
 
 add_subdirectory(src)
 
-option(mgba_mcp_BUILD_CLI "Build CLI tool" ${PROJECT_IS_TOP_LEVEL})
-if(mgba_mcp_BUILD_CLI)
+option(mgba_server_BUILD_CLI "Build CLI tool" ${PROJECT_IS_TOP_LEVEL})
+if(mgba_server_BUILD_CLI)
     add_subdirectory(cli)
 endif()
 
-option(mgba_mcp_BUILD_TESTS "Build GoogleTest tests" OFF)
-if(mgba_mcp_BUILD_TESTS)
+option(mgba_server_BUILD_TESTS "Build GoogleTest tests" OFF)
+if(mgba_server_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
