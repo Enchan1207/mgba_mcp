@@ -17,7 +17,7 @@ jobs:
       - name: Set up CMake
         uses: jwlawson/actions-setup-cmake@v2
         with:
-          cmake-version: '4.4.4'
+          cmake-version: '3.28'
       - name: Install Ninja
         run: sudo apt-get update && sudo apt-get install -y ninja-build
       - name: Configure
