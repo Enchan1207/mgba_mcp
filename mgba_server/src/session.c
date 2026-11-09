@@ -1,21 +1,30 @@
 #include "mgba_server/session.h"
 
-#include <stdlib.h>
-#include <string.h>
-
 #include <mgba/internal/gb/input.h>
 
+/// @brief ボタンを mGBA の入力ビットに変換する
+/// @param button 変換するボタン
+/// @return 対応する入力ビット。MGBA_BUTTON_ALL または無効な値の場合は 0
 static uint32_t button_mask(enum mgba_button button) {
     switch (button) {
-    case MGBA_BUTTON_A: return UINT32_C(1) << GB_KEY_A;
-    case MGBA_BUTTON_B: return UINT32_C(1) << GB_KEY_B;
-    case MGBA_BUTTON_SELECT: return UINT32_C(1) << GB_KEY_SELECT;
-    case MGBA_BUTTON_START: return UINT32_C(1) << GB_KEY_START;
-    case MGBA_BUTTON_RIGHT: return UINT32_C(1) << GB_KEY_RIGHT;
-    case MGBA_BUTTON_LEFT: return UINT32_C(1) << GB_KEY_LEFT;
-    case MGBA_BUTTON_UP: return UINT32_C(1) << GB_KEY_UP;
-    case MGBA_BUTTON_DOWN: return UINT32_C(1) << GB_KEY_DOWN;
-    case MGBA_BUTTON_ALL: return 0;
+        case MGBA_BUTTON_A:
+            return UINT32_C(1) << GB_KEY_A;
+        case MGBA_BUTTON_B:
+            return UINT32_C(1) << GB_KEY_B;
+        case MGBA_BUTTON_SELECT:
+            return UINT32_C(1) << GB_KEY_SELECT;
+        case MGBA_BUTTON_START:
+            return UINT32_C(1) << GB_KEY_START;
+        case MGBA_BUTTON_RIGHT:
+            return UINT32_C(1) << GB_KEY_RIGHT;
+        case MGBA_BUTTON_LEFT:
+            return UINT32_C(1) << GB_KEY_LEFT;
+        case MGBA_BUTTON_UP:
+            return UINT32_C(1) << GB_KEY_UP;
+        case MGBA_BUTTON_DOWN:
+            return UINT32_C(1) << GB_KEY_DOWN;
+        case MGBA_BUTTON_ALL:
+            return 0;
     }
     return 0;
 }

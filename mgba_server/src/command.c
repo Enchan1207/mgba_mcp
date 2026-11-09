@@ -8,6 +8,9 @@ struct token {
     size_t length;
 };
 
+/// @brief 空白を読み飛ばし、次のトークンを取り出す
+/// @param cursor 入力中の現在位置。取り出したトークンの末尾に更新する
+/// @return 入力を参照するトークン。残りが空白のみの場合は長さ 0
 static struct token next_token(const char** cursor) {
     const char* p = *cursor;
     while (isspace((unsigned char)*p)) {
@@ -23,6 +26,10 @@ static struct token next_token(const char** cursor) {
     return token;
 }
 
+/// @brief トークンと文字列を大文字・小文字を区別せずに比較する
+/// @param token 比較するトークン
+/// @param word 比較対象の文字列
+/// @return 一致する場合は 1、それ以外は 0
 static int equals(struct token token, const char* word) {
     size_t i = 0;
     while (i < token.length && word[i]) {
@@ -35,6 +42,10 @@ static int equals(struct token token, const char* word) {
     return i == token.length && word[i] == '\0';
 }
 
+/// @brief エラーメッセージを設定してパース失敗を返す
+/// @param error エラーメッセージの格納先。NULL の場合は設定しない
+/// @param message 設定するエラーメッセージ
+/// @return MGBA_PARSE_ERROR
 static enum mgba_parse_result fail(const char** error, const char* message) {
     if (error) {
         *error = message;
@@ -42,6 +53,10 @@ static enum mgba_parse_result fail(const char** error, const char* message) {
     return MGBA_PARSE_ERROR;
 }
 
+/// @brief トークンを有効なフレーム数に変換する
+/// @param token 数字を含むトークン
+/// @param frames 変換に成功したフレーム数の格納先
+/// @return 1 以上 MGBA_COMMAND_MAX_FRAMES 以下の整数なら 1、それ以外は 0
 static int parse_frames(struct token token, unsigned* frames) {
     unsigned value = 0;
     if (!token.length) {
@@ -69,6 +84,11 @@ static int parse_frames(struct token token, unsigned* frames) {
     return 1;
 }
 
+/// @brief トークンをコントローラボタンに変換する
+/// @param token ボタン名を含むトークン
+/// @param allow_all MGBA_BUTTON_ALL を許可する場合は 1
+/// @param button 変換に成功したボタンの格納先
+/// @return 有効なボタン名なら 1、それ以外は 0
 static int parse_button(struct token token, int allow_all, enum mgba_button* button) {
     static const struct {
         const char* name;
