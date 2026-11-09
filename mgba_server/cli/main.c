@@ -7,7 +7,7 @@
 #include <mgba/core/core.h>
 
 #define DEFAULT_FRAMES 900U
-#define MAX_FRAMES 216000U
+#define MAX_FRAMES 18000U
 
 static bool parse_frames(const char* text, unsigned* frames) {
     char* end = NULL;

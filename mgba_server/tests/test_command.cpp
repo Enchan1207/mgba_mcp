@@ -67,7 +67,7 @@ TEST(CommandParserTest, ParsesFrameCountBoundaries) {
     constexpr Case cases[]{
         Case{"STEP 1", 1},
         Case{"STEP 900", 900},
-        Case{"STEP 216000", MGBA_COMMAND_MAX_FRAMES},
+        Case{"STEP 18000", MGBA_COMMAND_MAX_FRAMES},
     };
     for (const auto& test : cases) {
         SCOPED_TRACE(test.input);
@@ -79,7 +79,7 @@ TEST(CommandParserTest, ParsesFrameCountBoundaries) {
 
 TEST(CommandParserTest, RejectsInvalidFrameCounts) {
     for (const char* input : {
-             "STEP", "STEP 0", "STEP 216001", "STEP -1", "STEP +1",
+             "STEP", "STEP 0", "STEP 18001", "STEP -1", "STEP +1",
              "STEP 1.5", "STEP 12x", "STEP 9999999999999999999999999999"}) {
         expect_error(input);
     }
