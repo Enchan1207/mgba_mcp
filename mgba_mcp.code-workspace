@@ -1,0 +1,17 @@
+{
+  "folders": [
+    {
+      "path": "./cli",
+    },
+    {
+      "path": "./include",
+    },
+    {
+      "path": "./src",
+    },
+    {
+      "name": "(root)",
+      "path": "./",
+    },
+  ],
+}

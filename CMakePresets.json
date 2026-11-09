@@ -1,0 +1,23 @@
+{
+    "version": 2,
+    "cmakeMinimumRequired": {
+        "major": 4,
+        "minor": 4,
+        "patch": 4
+    },
+    "configurePresets": [
+        {
+            "name": "target",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "environment": {},
+            "cacheVariables": {}
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "target",
+            "configurePreset": "target"
+        }
+    ]
+}
