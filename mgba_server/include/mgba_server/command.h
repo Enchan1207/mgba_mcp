@@ -26,8 +26,6 @@ enum mgba_button {
     MGBA_BUTTON_LEFT,
     MGBA_BUTTON_UP,
     MGBA_BUTTON_DOWN,
-    MGBA_BUTTON_R,
-    MGBA_BUTTON_L,
     MGBA_BUTTON_ALL
 };
 

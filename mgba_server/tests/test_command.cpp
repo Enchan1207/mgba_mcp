@@ -95,7 +95,6 @@ TEST(CommandParserTest, MapsAllButtonsForPressAndRelease) {
         Case{"SELECT", MGBA_BUTTON_SELECT}, Case{"START", MGBA_BUTTON_START},
         Case{"RIGHT", MGBA_BUTTON_RIGHT}, Case{"LEFT", MGBA_BUTTON_LEFT},
         Case{"UP", MGBA_BUTTON_UP}, Case{"DOWN", MGBA_BUTTON_DOWN},
-        Case{"R", MGBA_BUTTON_R}, Case{"L", MGBA_BUTTON_L},
     };
     for (const auto& test : cases) {
         for (const char* verb : {"PRESS ", "RELEASE "}) {

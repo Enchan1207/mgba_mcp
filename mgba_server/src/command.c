@@ -82,8 +82,6 @@ static int parse_button(struct token token, int allow_all, enum mgba_button* but
         {"LEFT", MGBA_BUTTON_LEFT},
         {"UP", MGBA_BUTTON_UP},
         {"DOWN", MGBA_BUTTON_DOWN},
-        {"R", MGBA_BUTTON_R},
-        {"L", MGBA_BUTTON_L},
     };
 
     if (allow_all && equals(token, "ALL")) {
