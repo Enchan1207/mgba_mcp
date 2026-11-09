@@ -5,13 +5,21 @@
 - CMake
 - C/C++コンパイラ
 
-## Boostrap
+## MCP server
+
+under construction
+
+## mGBA server
+
+ディレクトリ `mgba_server` 以下で実行します。
+
+### Boostrap
 
 ```sh
 cmake --preset target
 ```
 
-## Build
+### Build
 
 ```sh
 cmake --build --preset target

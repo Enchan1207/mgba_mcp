@@ -1,13 +1,10 @@
 {
   "folders": [
     {
-      "path": "./cli",
+      "path": "./mgba_server",
     },
     {
-      "path": "./include",
-    },
-    {
-      "path": "./src",
+      "path": "./mgba_mcp",
     },
     {
       "name": "(root)",
