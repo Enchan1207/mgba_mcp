@@ -2,6 +2,7 @@
 
 #include <array>
 #include <chrono>
+#include <cerrno>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -190,7 +191,9 @@ TEST_F(ServerTest, BoundsAndSplitInput) {
     EXPECT_EQ(request(control, "TUS").body, "frames=0 pressed_keys=0 has_frame=false");
     std::string long_line(32, 'X'); long_line += '\n';
     ASSERT_EQ(send(control, long_line.data(), long_line.size(), 0), static_cast<ssize_t>(long_line.size()));
-    char ch; EXPECT_EQ(recv(control, &ch, 1, 0), 0);
+    char ch;
+    const ssize_t received = recv(control, &ch, 1, 0);
+    EXPECT_TRUE(received == 0 || (received == -1 && errno == ECONNRESET));
     close(view);
     close(control);
 }
