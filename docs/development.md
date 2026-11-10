@@ -7,17 +7,17 @@
 
 ## MCP server
 
-Node.js 20以降が必要です。`mgba_mcp` ディレクトリで実行します。
+Node.js 22.12以降と pnpm 11.8.0 が必要です。`mgba_mcp` ディレクトリで実行します。依存パッケージは公開から24時間以上経過したバージョンに制限されます。
 
 ```sh
-npm ci
-npm run build
-npm test
-npm run lint
-npm run format:check
+pnpm install --frozen-lockfile
+pnpm run build
+pnpm test
+pnpm run lint
+pnpm run format:check
 ```
 
-起動するには `npm start` を実行します。MCPクライアントから接続する場合は、コマンドを `node`、引数を `mgba_mcp/dist/index.js` に設定してください。標準入出力で通信します。
+起動するには `pnpm start` を実行します。MCPクライアントから接続する場合は、コマンドを `node`、引数を `mgba_mcp/dist/index.js` に設定してください。標準入出力で通信します。
 
 現時点ではMCPサーバの接続基盤のみで、mGBAの操作ツールは未登録です。
 
