@@ -83,4 +83,26 @@ TEST_F(SessionTest, KeepsInputAcrossStepsAndClearsItOnReset) {
     EXPECT_EQ(mgba_session_frame(&session_), nullptr);
 }
 
+TEST_F(SessionTest, UsesGameBoyDimensionsForSuperGameBoyROM) {
+    // The SGB and old-licensee header flags make this ROM SGB-capable.
+    std::fstream file(rom_path_, std::ios::binary | std::ios::in | std::ios::out);
+    ASSERT_TRUE(file.is_open());
+    file.seekp(0x146);
+    file.put('\x03');
+    file.seekp(0x14B);
+    file.put('\x33');
+    file.close();
+
+    Init();
+    if (!initialized_) return;
+
+    unsigned width = 0;
+    unsigned height = 0;
+    session_.core->desiredVideoDimensions(session_.core, &width, &height);
+    EXPECT_EQ(width, MGBA_SESSION_WIDTH);
+    EXPECT_EQ(height, MGBA_SESSION_HEIGHT);
+    mgba_session_step(&session_, 1);
+    EXPECT_NE(mgba_session_frame(&session_), nullptr);
+}
+
 } // namespace

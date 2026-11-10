@@ -50,11 +50,15 @@ bool mgba_session_init(struct mgba_session* session, const char* rom_path) {
 
     mCoreInitConfig(core, NULL);
     session->config_initialized = true;
+    mCoreLoadConfig(core);
+    // The public frame format is 160x144, including for Super Game Boy ROMs.
+    // Apply these after loading user configuration so local mGBA settings cannot override them.
     mCoreConfigSetValue(&core->config, "gb.model", "DMG");
     mCoreConfigSetValue(&core->config, "sgb.model", "DMG");
     mCoreConfigSetValue(&core->config, "cgb.hybridModel", "DMG");
     mCoreConfigSetValue(&core->config, "cgb.sgbModel", "DMG");
-    mCoreLoadConfig(core);
+    mCoreConfigSetValue(&core->config, "sgb.borders", "0");
+    core->reloadConfigOption(core, "sgb.borders", &core->config);
     core->reset(core);
 
     unsigned width = 0;
