@@ -2,8 +2,14 @@ name: Server tests
 
 on:
   pull_request:
+    paths:
+      - 'mgba_server/**'
+      - '.github/workflows/server-tests.yml'
   push:
     branches: [main]
+    paths:
+      - 'mgba_server/**'
+      - '.github/workflows/server-tests.yml'
 
 permissions:
   contents: read

@@ -2,8 +2,14 @@ name: Client tests
 
 on:
   pull_request:
+    paths:
+      - 'mgba_client/**'
+      - '.github/workflows/client-tests.yml'
   push:
     branches: [main]
+    paths:
+      - 'mgba_client/**'
+      - '.github/workflows/client-tests.yml'
 
 permissions:
   contents: read
