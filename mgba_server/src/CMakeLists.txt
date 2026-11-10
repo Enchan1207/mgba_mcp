@@ -15,3 +15,6 @@ target_include_directories(mgba_session PUBLIC
 )
 
 target_link_libraries(mgba_session PUBLIC mgba mgba_command)
+add_executable(mgba_server server.cpp)
+target_compile_features(mgba_server PRIVATE cxx_std_17)
+target_link_libraries(mgba_server PRIVATE mgba_session)
