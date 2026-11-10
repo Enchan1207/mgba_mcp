@@ -137,3 +137,9 @@ struct mgba_session_status mgba_session_status(const struct mgba_session* sessio
 const color_t* mgba_session_frame(const struct mgba_session* session) {
     return session->has_frame ? session->pixels : NULL;
 }
+
+void mgba_session_read(struct mgba_session* session, uint32_t address, uint8_t* output, uint32_t length) {
+    for (uint32_t i = 0; i < length; ++i) {
+        output[i] = (uint8_t)session->core->busRead8(session->core, address + i);
+    }
+}

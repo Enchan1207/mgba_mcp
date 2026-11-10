@@ -84,6 +84,42 @@ static int parse_frames(struct token token, uint32_t* frames) {
     return 1;
 }
 
+/// @brief 1～4 桁の 16 進アドレスを読み取る
+static int parse_address(struct token token, uint32_t* address) {
+    if (!token.length || token.length > 4) {
+        return 0;
+    }
+    uint32_t value = 0;
+    for (size_t i = 0; i < token.length; ++i) {
+        uint8_t c = (uint8_t)token.start[i];
+        uint32_t digit;
+        if (c >= '0' && c <= '9') digit = c - '0';
+        else if (c >= 'A' && c <= 'F') digit = c - 'A' + 10;
+        else if (c >= 'a' && c <= 'f') digit = c - 'a' + 10;
+        else return 0;
+        value = value * 16 + digit;
+    }
+    *address = value;
+    return 1;
+}
+
+/// @brief アドレス空間を越えない十進バイト数を読み取る
+static int parse_read_length(struct token token, uint32_t address, uint32_t* length) {
+    if (!token.length) return 0;
+    uint32_t value = 0;
+    uint32_t limit = UINT32_C(0x10000) - address;
+    for (size_t i = 0; i < token.length; ++i) {
+        uint8_t c = (uint8_t)token.start[i];
+        if (c < '0' || c > '9') return 0;
+        uint32_t digit = c - '0';
+        if (digit > limit || value > (limit - digit) / 10) return 0;
+        value = value * 10 + digit;
+    }
+    if (!value) return 0;
+    *length = value;
+    return 1;
+}
+
 /// @brief トークンをコントローラボタンに変換する
 /// @param token ボタン名を含むトークン
 /// @param allow_all MGBA_BUTTON_ALL を許可する場合は 1
@@ -169,6 +205,17 @@ enum mgba_parse_result mgba_command_parse(
         }
         if (!parse_frames(extra, &parsed.argument.type.frames)) {
             return fail(error, "invalid frame count");
+        }
+        if (next_token(&cursor).length) {
+            return fail(error, "too many arguments");
+        }
+    } else if (equals(verb, "READ")) {
+        parsed.type = MGBA_COMMAND_READ;
+        if (!parse_address(arg, &parsed.argument.read.address)) {
+            return fail(error, "invalid address");
+        }
+        if (!parse_read_length(extra, parsed.argument.read.address, &parsed.argument.read.length)) {
+            return fail(error, "invalid read length");
         }
         if (next_token(&cursor).length) {
             return fail(error, "too many arguments");

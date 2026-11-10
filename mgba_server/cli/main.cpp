@@ -164,6 +164,11 @@ private:
                 else mgba_session_release(&session_, c.argument.button);
                 std::lock_guard<std::mutex> lock(state_mutex_);
                 keys_ = session_.pressed_keys;
+            } else if (c.type == MGBA_COMMAND_READ) {
+                result.body.resize(c.argument.read.length);
+                mgba_session_read(&session_, c.argument.read.address,
+                                  reinterpret_cast<uint8_t*>(result.body.data()),
+                                  c.argument.read.length);
             } else if (c.type == MGBA_COMMAND_QUIT) {
                 stopping_ = true; frame_cv_.notify_all(); work_cv_.notify_all();
             }
@@ -226,7 +231,7 @@ private:
         auto respond = [&](const Result& r, const std::string& command, std::chrono::steady_clock::time_point start) {
             if (!send_reply(fd, r.ok, r.body)) { reason = "send_failed"; log_line("WARN", "communication_failed", prefix + " operation=send errno=" + std::to_string(errno)); return false; }
             auto us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count();
-            std::string summary = r.ok && (command == "CAPTURE" || command == "WAIT_FRAME")
+            std::string summary = r.ok && (command == "CAPTURE" || command == "WAIT_FRAME" || command == "READ")
                 ? "(binary)" : escaped(r.body);
             log_line("INFO", "response_sent", prefix + " request_id=" + std::to_string(request_id) + " result=" + (r.ok ? "S" : "E") + " body_length=" + std::to_string(r.body.size()) + " summary=" + summary + " duration_us=" + std::to_string(us));
             return true;

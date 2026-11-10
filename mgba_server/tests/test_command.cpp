@@ -32,6 +32,7 @@ TEST(CommandParserTest, ParsesEveryCommandKind) {
         Case{"PRESS A", MGBA_COMMAND_PRESS},
         Case{"RELEASE A", MGBA_COMMAND_RELEASE},
         Case{"TYPE A 10", MGBA_COMMAND_TYPE},
+        Case{"READ D123 20", MGBA_COMMAND_READ},
         Case{"RESET", MGBA_COMMAND_RESET},
         Case{"STATUS", MGBA_COMMAND_STATUS},
         Case{"CAPTURE", MGBA_COMMAND_CAPTURE},
@@ -96,6 +97,23 @@ TEST(CommandParserTest, ParsesTypeButtonAndFrames) {
     EXPECT_EQ(command.argument.type.frames, MGBA_COMMAND_MAX_FRAMES);
     for (const char* input : {"TYPE", "TYPE A", "TYPE ALL 1", "TYPE X 1", "TYPE A 0",
                               "TYPE A 18001", "TYPE A -1", "TYPE A 1 extra"}) {
+        expect_error(input);
+    }
+}
+
+TEST(CommandParserTest, ParsesReadAndChecksAddressSpace) {
+    mgba_command command{};
+    ASSERT_EQ(mgba_command_parse("read d123 20", &command, nullptr), MGBA_PARSE_OK);
+    EXPECT_EQ(command.argument.read.address, 0xD123u);
+    EXPECT_EQ(command.argument.read.length, 20u);
+    ASSERT_EQ(mgba_command_parse("READ FFFF 1", &command, nullptr), MGBA_PARSE_OK);
+    EXPECT_EQ(command.argument.read.address, 0xFFFFu);
+    EXPECT_EQ(command.argument.read.length, 1u);
+    ASSERT_EQ(mgba_command_parse("READ 0000 65536", &command, nullptr), MGBA_PARSE_OK);
+    EXPECT_EQ(command.argument.read.length, 65536u);
+    for (const char* input : {"READ", "READ D123", "READ 10000 1", "READ 0xD123 1",
+                              "READ D12G 1", "READ FFFF 2", "READ D123 0", "READ D123 -1",
+                              "READ D123 999999999999", "READ D123 1 extra"}) {
         expect_error(input);
     }
 }

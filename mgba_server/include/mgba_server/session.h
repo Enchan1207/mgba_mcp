@@ -71,6 +71,13 @@ struct mgba_session_status mgba_session_status(const struct mgba_session* sessio
 /// @note 返されたポインタはセッションが所有し、次のフレーム実行、リセット、解放まで有効
 const color_t* mgba_session_frame(const struct mgba_session* session);
 
+/// @brief 現在の Game Boy バスから連続したバイトを読み出す
+/// @param session 初期化済みセッション
+/// @param address 先頭アドレス（0x0000～0xFFFF）
+/// @param output length バイト以上の格納先
+/// @param length 読み出すバイト数。address + length は 0x10000 以下
+void mgba_session_read(struct mgba_session* session, uint32_t address, uint8_t* output, uint32_t length);
+
 #ifdef __cplusplus
 }
 #endif

@@ -33,6 +33,9 @@ enum mgba_command_type {
     /// @brief 画面キャプチャを取得する
     MGBA_COMMAND_CAPTURE,
 
+    /// @brief 指定アドレスからメモリを読み出す
+    MGBA_COMMAND_READ,
+
     /// @brief エミュレータとサーバを終了する
     MGBA_COMMAND_QUIT
 };
@@ -62,6 +65,10 @@ struct mgba_command {
             enum mgba_button button;
             uint32_t frames;
         } type;
+        struct {
+            uint32_t address;
+            uint32_t length;
+        } read;
     } argument;
 };
 
