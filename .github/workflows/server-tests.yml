@@ -1,15 +1,19 @@
-name: CI
+name: Server tests
 
 on:
-  push:
   pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: mgba_server
     steps:
       - uses: actions/checkout@v7
         with:
@@ -20,9 +24,10 @@ jobs:
           cmake-version: '3.28'
       - name: Install Ninja
         run: sudo apt-get update && sudo apt-get install -y ninja-build
-      - name: Configure
-        run: cmake --preset target
-        working-directory: mgba_server
+        working-directory: .
+      - name: Configure tests
+        run: cmake --preset target -Dmgba_server_BUILD_TESTS=ON
       - name: Build
         run: cmake --build --preset target
-        working-directory: mgba_server
+      - name: Test server
+        run: ctest --test-dir build/target --output-on-failure
