@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "test": "npm run build && vitest run",
+    "test": "pnpm run build && vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit --tsBuildInfoFile ./node_modules/.tmp/tsconfig.typecheck.tsbuildinfo",
     "lint": "oxlint .",
     "format": "oxfmt .",
@@ -27,6 +27,7 @@
     "vitest": "^5.1.0"
   },
   "engines": {
-    "node": ">=20"
-  }
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@11.8.0"
 }
