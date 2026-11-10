@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -69,6 +70,8 @@ TEST_F(SessionTest, KeepsInputAcrossStepsAndClearsItOnReset) {
     EXPECT_EQ(mgba_session_frame(&session_), session_.pixels);
     EXPECT_EQ(mgba_session_status(&session_).frames_elapsed, 2u);
     EXPECT_TRUE(mgba_session_status(&session_).has_frame);
+    EXPECT_TRUE(std::any_of(std::begin(session_.pixels), std::end(session_.pixels),
+                            [](color_t pixel) { return pixel != 0; }));
 
     mgba_session_release(&session_, MGBA_BUTTON_A);
     EXPECT_EQ(session_.core->getKeys(session_.core), 2u);
@@ -81,6 +84,28 @@ TEST_F(SessionTest, KeepsInputAcrossStepsAndClearsItOnReset) {
     EXPECT_EQ(mgba_session_status(&session_).frames_elapsed, 0u);
     EXPECT_EQ(mgba_session_status(&session_).pressed_keys, 0u);
     EXPECT_EQ(mgba_session_frame(&session_), nullptr);
+}
+
+TEST_F(SessionTest, UsesGameBoyDimensionsForSuperGameBoyROM) {
+    // The SGB and old-licensee header flags make this ROM SGB-capable.
+    std::fstream file(rom_path_, std::ios::binary | std::ios::in | std::ios::out);
+    ASSERT_TRUE(file.is_open());
+    file.seekp(0x146);
+    file.put('\x03');
+    file.seekp(0x14B);
+    file.put('\x33');
+    file.close();
+
+    Init();
+    if (!initialized_) return;
+
+    unsigned width = 0;
+    unsigned height = 0;
+    session_.core->desiredVideoDimensions(session_.core, &width, &height);
+    EXPECT_EQ(width, MGBA_SESSION_WIDTH);
+    EXPECT_EQ(height, MGBA_SESSION_HEIGHT);
+    mgba_session_step(&session_, 1);
+    EXPECT_NE(mgba_session_frame(&session_), nullptr);
 }
 
 } // namespace

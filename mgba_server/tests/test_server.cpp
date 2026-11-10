@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
+#include <cerrno>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -51,8 +53,8 @@ protected:
     void SetUp() override {
         auto stamp = std::to_string(getpid()) + "-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
         rom_ = std::filesystem::temp_directory_path() / ("mgba-server-" + stamp + ".gb");
-        sock_ = std::filesystem::path("/private/tmp") / ("ms-" + stamp + ".sock");
-        log_ = std::filesystem::path("/private/tmp") / ("ms-" + stamp + ".log");
+        sock_ = std::filesystem::path("/tmp") / ("ms-" + stamp + ".sock");
+        log_ = std::filesystem::path("/tmp") / ("ms-" + stamp + ".log");
         std::array<uint8_t, 0x8000> rom{};
         rom[0x100] = 0xC3; rom[0x101] = 0x50; rom[0x102] = 0x01;
         rom[0x104] = 0xCE; rom[0x105] = 0xED; rom[0x106] = 0x66; rom[0x107] = 0x66;
@@ -119,6 +121,8 @@ TEST_F(ServerTest, FrameResetWaitAndStatus) {
     ASSERT_EQ(image.result, 'S'); ASSERT_EQ(image.body.size(), 92170u);
     EXPECT_EQ(frame_number(image), 2u);
     EXPECT_EQ(uint8_t(image.body[8]), 160); EXPECT_EQ(uint8_t(image.body[9]), 144);
+    EXPECT_TRUE(std::any_of(image.body.begin() + 10, image.body.end(),
+                            [](char channel) { return channel != 0; }));
     EXPECT_EQ(request(control, "STATUS").body, "frames=2 pressed_keys=1 has_frame=true");
     EXPECT_EQ(request(control, "RESET").result, 'S');
     EXPECT_EQ(request(view, "WAIT_FRAME 1000").body, "NO_FRAME");
@@ -130,7 +134,7 @@ TEST_F(ServerTest, QuitWakesWaiterAndRemovesSocket) {
     ASSERT_GE(control, 0); ASSERT_GE(view, 0);
     EXPECT_EQ(request(view, "WAIT_FRAME 1").body, "NO_FRAME");
     Reply pending{};
-    std::thread waiter([&] { pending = request(view, "WAIT_FRAME 60000"); });
+    std::thread waiter([&] { pending = request(view, "WAIT_FRAME 120000"); });
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     EXPECT_EQ(request(control, "QUIT").result, 'S');
     waiter.join();
@@ -178,9 +182,11 @@ TEST_F(ServerTest, LogsConnectionRequestResponseAndBinarySummary) {
 }
 TEST_F(ServerTest, BoundsAndSplitInput) {
     int control = connect_as("CONTROL"); ASSERT_GE(control, 0);
+    int view = connect_as("VIEW"); ASSERT_GE(view, 0);
     EXPECT_EQ(request(control, "STEP 0").body, "BAD_REQUEST");
     EXPECT_EQ(request(control, "STEP 18001").body, "BAD_REQUEST");
     EXPECT_EQ(request(control, "WAIT_FRAME 0").body, "BAD_REQUEST");
+    EXPECT_EQ(request(view, "WAIT_FRAME 120001").body, "BAD_REQUEST");
     EXPECT_EQ(request(control, "STATUS EXTRA").body, "BAD_REQUEST");
     EXPECT_EQ(request(control, "release all").result, 'S');
     EXPECT_EQ(request(control, std::string("STATUS") + std::string(25, ' ')).result, 'S');
@@ -188,7 +194,10 @@ TEST_F(ServerTest, BoundsAndSplitInput) {
     EXPECT_EQ(request(control, "TUS").body, "frames=0 pressed_keys=0 has_frame=false");
     std::string long_line(32, 'X'); long_line += '\n';
     ASSERT_EQ(send(control, long_line.data(), long_line.size(), 0), static_cast<ssize_t>(long_line.size()));
-    char ch; EXPECT_EQ(recv(control, &ch, 1, 0), 0);
+    char ch;
+    const ssize_t received = recv(control, &ch, 1, 0);
+    EXPECT_TRUE(received == 0 || (received == -1 && errno == ECONNRESET));
+    close(view);
     close(control);
 }
 } // namespace

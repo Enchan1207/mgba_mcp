@@ -4,7 +4,13 @@
       "path": "./mgba_server",
     },
     {
+      "path": "./mgba_client",
+    },
+    {
       "path": "./mgba_mcp",
+    },
+    {
+      "path": "./docs",
     },
     {
       "name": "(root)",
