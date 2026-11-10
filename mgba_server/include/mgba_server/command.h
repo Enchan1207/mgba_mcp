@@ -1,6 +1,8 @@
 #ifndef MGBA_SERVER_COMMAND_H
 #define MGBA_SERVER_COMMAND_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,6 +30,9 @@ enum mgba_command_type {
     /// @brief 画面キャプチャを取得する
     MGBA_COMMAND_CAPTURE,
 
+    /// @brief 指定アドレスからメモリを読み出す
+    MGBA_COMMAND_READ,
+
     /// @brief エミュレータとサーバを終了する
     MGBA_COMMAND_QUIT
 };
@@ -51,8 +56,12 @@ enum mgba_button {
 struct mgba_command {
     enum mgba_command_type type;
     union {
-        unsigned frames;
+        uint32_t frames;
         enum mgba_button button;
+        struct {
+            uint32_t address;
+            uint32_t length;
+        } read;
     } argument;
 };
 

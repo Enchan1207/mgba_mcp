@@ -55,7 +55,7 @@ TEST_F(SessionTest, KeepsInputAcrossStepsAndClearsItOnReset) {
     Init();
     if (!initialized_) return;
 
-    unsigned width = 0, height = 0;
+    uint32_t width = 0, height = 0;
     session_.core->desiredVideoDimensions(session_.core, &width, &height);
     EXPECT_EQ(width, MGBA_SESSION_WIDTH);
     EXPECT_EQ(height, MGBA_SESSION_HEIGHT);
@@ -99,8 +99,8 @@ TEST_F(SessionTest, UsesGameBoyDimensionsForSuperGameBoyROM) {
     Init();
     if (!initialized_) return;
 
-    unsigned width = 0;
-    unsigned height = 0;
+    uint32_t width = 0;
+    uint32_t height = 0;
     session_.core->desiredVideoDimensions(session_.core, &width, &height);
     EXPECT_EQ(width, MGBA_SESSION_WIDTH);
     EXPECT_EQ(height, MGBA_SESSION_HEIGHT);

@@ -63,8 +63,8 @@ bool mgba_session_init(struct mgba_session* session, const char* rom_path) {
     core->setVideoBuffer(core, session->pixels, MGBA_SESSION_WIDTH);
     core->reset(core);
 
-    unsigned width = 0;
-    unsigned height = 0;
+    uint32_t width = 0;
+    uint32_t height = 0;
     core->desiredVideoDimensions(core, &width, &height);
     if (width != MGBA_SESSION_WIDTH || height != MGBA_SESSION_HEIGHT) {
         goto fail;
@@ -106,8 +106,8 @@ void mgba_session_release(struct mgba_session* session, enum mgba_button button)
     session->core->setKeys(session->core, session->pressed_keys);
 }
 
-void mgba_session_step(struct mgba_session* session, unsigned frames) {
-    for (unsigned i = 0; i < frames; ++i) {
+void mgba_session_step(struct mgba_session* session, uint32_t frames) {
+    for (uint32_t i = 0; i < frames; ++i) {
         session->core->runFrame(session->core);
     }
     session->frames_elapsed += frames;
@@ -136,4 +136,10 @@ struct mgba_session_status mgba_session_status(const struct mgba_session* sessio
 
 const color_t* mgba_session_frame(const struct mgba_session* session) {
     return session->has_frame ? session->pixels : NULL;
+}
+
+void mgba_session_read(struct mgba_session* session, uint32_t address, uint8_t* output, uint32_t length) {
+    for (uint32_t i = 0; i < length; ++i) {
+        output[i] = (uint8_t)session->core->busRead8(session->core, address + i);
+    }
 }
