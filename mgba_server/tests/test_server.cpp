@@ -130,7 +130,7 @@ TEST_F(ServerTest, QuitWakesWaiterAndRemovesSocket) {
     ASSERT_GE(control, 0); ASSERT_GE(view, 0);
     EXPECT_EQ(request(view, "WAIT_FRAME 1").body, "NO_FRAME");
     Reply pending{};
-    std::thread waiter([&] { pending = request(view, "WAIT_FRAME 60000"); });
+    std::thread waiter([&] { pending = request(view, "WAIT_FRAME 120000"); });
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     EXPECT_EQ(request(control, "QUIT").result, 'S');
     waiter.join();
@@ -178,9 +178,11 @@ TEST_F(ServerTest, LogsConnectionRequestResponseAndBinarySummary) {
 }
 TEST_F(ServerTest, BoundsAndSplitInput) {
     int control = connect_as("CONTROL"); ASSERT_GE(control, 0);
+    int view = connect_as("VIEW"); ASSERT_GE(view, 0);
     EXPECT_EQ(request(control, "STEP 0").body, "BAD_REQUEST");
     EXPECT_EQ(request(control, "STEP 18001").body, "BAD_REQUEST");
     EXPECT_EQ(request(control, "WAIT_FRAME 0").body, "BAD_REQUEST");
+    EXPECT_EQ(request(view, "WAIT_FRAME 120001").body, "BAD_REQUEST");
     EXPECT_EQ(request(control, "STATUS EXTRA").body, "BAD_REQUEST");
     EXPECT_EQ(request(control, "release all").result, 'S');
     EXPECT_EQ(request(control, std::string("STATUS") + std::string(25, ' ')).result, 'S');
@@ -189,6 +191,7 @@ TEST_F(ServerTest, BoundsAndSplitInput) {
     std::string long_line(32, 'X'); long_line += '\n';
     ASSERT_EQ(send(control, long_line.data(), long_line.size(), 0), static_cast<ssize_t>(long_line.size()));
     char ch; EXPECT_EQ(recv(control, &ch, 1, 0), 0);
+    close(view);
     close(control);
 }
 } // namespace

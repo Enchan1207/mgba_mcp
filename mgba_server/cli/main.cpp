@@ -98,7 +98,7 @@ bool timeout_arg(const std::string& line, unsigned& value) {
     for (size_t i = 11; i < line.size(); ++i) {
         if (line[i] < '0' || line[i] > '9') return false;
         unsigned d = unsigned(line[i] - '0');
-        if (value > (60000 - d) / 10) return false;
+        if (value > (120000 - d) / 10) return false;
         value = value * 10 + d;
     }
     return value >= 1;
