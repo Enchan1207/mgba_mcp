@@ -5,5 +5,5 @@ target_sources(mgba_server_cli PRIVATE
 )
 
 target_link_libraries(mgba_server_cli PRIVATE
-    mgba
+    mgba_session
 )

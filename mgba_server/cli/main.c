@@ -1,131 +1,158 @@
 #include <errno.h>
+#include <inttypes.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
 
-#include <mgba/core/core.h>
+#include "mgba_server/command.h"
+#include "mgba_server/session.h"
 
-#define DEFAULT_FRAMES 900U
-#define MAX_FRAMES 18000U
-
-static bool parse_frames(const char* text, unsigned* frames) {
-    char* end = NULL;
-    errno = 0;
-    unsigned long value = strtoul(text, &end, 10);
-    if (errno != 0 || text == end || *end != '\0' || value == 0 || value > MAX_FRAMES) {
+static bool capture_frame(const struct mgba_session* session, uint64_t* capture_index) {
+    const color_t* pixels = mgba_session_frame(session);
+    if (!pixels) {
+        fprintf(stderr, "CAPTURE requires a frame; run STEP first.\n");
         return false;
     }
-    *frames = (unsigned) value;
+
+    const uint64_t frame = mgba_session_status(session).frames_elapsed;
+    char path[128];
+    FILE* output = NULL;
+    for (;;) {
+        int length = snprintf(path, sizeof(path), "capture-frame-%" PRIu64 "-%" PRIu64 ".raw",
+                              frame, *capture_index);
+        if (length < 0 || (size_t)length >= sizeof(path)) {
+            fprintf(stderr, "Cannot generate capture filename.\n");
+            return false;
+        }
+
+        output = fopen(path, "wbx");
+        if (output) {
+            break;
+        }
+        if (errno != EEXIST || *capture_index == UINT64_MAX) {
+            perror("Cannot create capture");
+            return false;
+        }
+        ++*capture_index;
+    }
+
+    const size_t pixel_count = MGBA_SESSION_WIDTH * MGBA_SESSION_HEIGHT;
+    bool written = fwrite(pixels, sizeof(*pixels), pixel_count, output) == pixel_count;
+    if (!written) {
+        perror("Cannot write capture");
+    }
+    if (fclose(output) != 0) {
+        perror("Cannot close capture");
+        written = false;
+    }
+    if (!written) {
+        remove(path);
+        return false;
+    }
+
+    printf("Saved %s (%u x %u, %zu bytes/pixel)\n", path,
+           MGBA_SESSION_WIDTH, MGBA_SESSION_HEIGHT, sizeof(*pixels));
+    if (*capture_index != UINT64_MAX) {
+        ++*capture_index;
+    }
     return true;
 }
 
+static bool execute_command(struct mgba_session* session,
+                            const struct mgba_command* command,
+                            uint64_t* capture_index) {
+    switch (command->type) {
+        case MGBA_COMMAND_STEP:
+            mgba_session_step(session, command->argument.frames);
+            return true;
+        case MGBA_COMMAND_PRESS:
+            mgba_session_press(session, command->argument.button);
+            return true;
+        case MGBA_COMMAND_RELEASE:
+            mgba_session_release(session, command->argument.button);
+            return true;
+        case MGBA_COMMAND_RESET:
+            mgba_session_reset(session);
+            return true;
+        case MGBA_COMMAND_STATUS: {
+            struct mgba_session_status status = mgba_session_status(session);
+            printf("frames=%" PRIu64 " pressed_keys=%" PRIu32 " has_frame=%s\n",
+                   status.frames_elapsed, status.pressed_keys,
+                   status.has_frame ? "true" : "false");
+            return true;
+        }
+        case MGBA_COMMAND_CAPTURE:
+            return capture_frame(session, capture_index);
+        case MGBA_COMMAND_QUIT:
+            return true;
+    }
+    return false;
+}
+
 int main(int argc, char* argv[]) {
-    if (argc != 3 && argc != 4) {
-        fprintf(stderr, "Usage: %s ROM OUTPUT.raw [FRAMES]\n", argv[0]);
-        fprintf(stderr, "FRAMES defaults to %u (about 15 seconds of game time).\n", DEFAULT_FRAMES);
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s ROM COMMANDS\n", argv[0]);
         return EXIT_FAILURE;
     }
 
-    unsigned frames = DEFAULT_FRAMES;
-    if (argc == 4 && !parse_frames(argv[3], &frames)) {
-        fprintf(stderr, "FRAMES must be an integer from 1 to %u.\n", MAX_FRAMES);
+    FILE* input = fopen(argv[2], "r");
+    if (!input) {
+        perror("Cannot open command file");
         return EXIT_FAILURE;
     }
 
-    struct mCore* core = mCoreFind(argv[1]);
-    if (!core) {
-        fprintf(stderr, "Cannot open a supported ROM: %s\n", argv[1]);
-        return EXIT_FAILURE;
-    }
-    if (!core->init(core)) {
-        fprintf(stderr, "Failed to initialize mGBA.\n");
+    struct mgba_session session;
+    if (!mgba_session_init(&session, argv[1])) {
+        fprintf(stderr, "Cannot initialize Game Boy ROM: %s\n", argv[1]);
+        fclose(input);
         return EXIT_FAILURE;
     }
 
-    int result = EXIT_FAILURE;
-    bool config_initialized = false;
-    color_t* video_buffer = NULL;
-    FILE* output = NULL;
-    unsigned width = 0;
-    unsigned height = 0;
-    size_t pixel_count = 0;
-
-    core->desiredVideoDimensions(core, &width, &height);
-    if (width == 0 || height == 0 || width > SIZE_MAX / height / sizeof(*video_buffer)) {
-        fprintf(stderr, "Invalid video dimensions.\n");
-        goto cleanup;
+    int result = EXIT_SUCCESS;
+    char* line = NULL;
+    size_t capacity = 0;
+    size_t line_number = 0;
+    uint64_t capture_index = 0;
+    ssize_t length;
+    while ((length = getline(&line, &capacity, input)) != -1) {
+        ++line_number;
+        if (memchr(line, '\0', (size_t)length)) {
+            fprintf(stderr, "%s:%zu: NUL byte in command\n", argv[2], line_number);
+            result = EXIT_FAILURE;
+            break;
+        }
+        struct mgba_command command;
+        const char* error = NULL;
+        enum mgba_parse_result parsed = mgba_command_parse(line, &command, &error);
+        if (parsed == MGBA_PARSE_EMPTY) {
+            continue;
+        }
+        if (parsed == MGBA_PARSE_ERROR) {
+            fprintf(stderr, "%s:%zu: %s\n", argv[2], line_number, error);
+            result = EXIT_FAILURE;
+            break;
+        }
+        if (!execute_command(&session, &command, &capture_index)) {
+            fprintf(stderr, "%s:%zu: command failed\n", argv[2], line_number);
+            result = EXIT_FAILURE;
+            break;
+        }
+        if (command.type == MGBA_COMMAND_QUIT) {
+            break;
+        }
     }
-    pixel_count = (size_t) width * height;
-    video_buffer = calloc(pixel_count, sizeof(*video_buffer));
-    if (!video_buffer) {
-        fprintf(stderr, "Failed to allocate video buffer.\n");
-        goto cleanup;
-    }
-    core->setVideoBuffer(core, video_buffer, width);
-
-    if (!mCoreLoadFile(core, argv[1])) {
-        fprintf(stderr, "Failed to load ROM: %s\n", argv[1]);
-        goto cleanup;
-    }
-
-    mCoreInitConfig(core, NULL);
-    config_initialized = true;
-    mCoreLoadConfig(core);
-    if (core->platform(core) == mPLATFORM_GB) {
-        mCoreConfigSetValue(&core->config, "gb.model", "DMG");
-        mCoreConfigSetValue(&core->config, "sgb.model", "DMG");
-        mCoreConfigSetValue(&core->config, "cgb.hybridModel", "DMG");
-        mCoreConfigSetValue(&core->config, "cgb.sgbModel", "DMG");
-    }
-    core->reset(core);
-
-    unsigned output_width = 0;
-    unsigned output_height = 0;
-    core->desiredVideoDimensions(core, &output_width, &output_height);
-    if (output_width == 0 || output_height == 0 ||
-        output_width > SIZE_MAX / output_height / sizeof(*video_buffer) ||
-        (size_t) output_width * output_height > pixel_count) {
-        fprintf(stderr, "Invalid video dimensions after reset.\n");
-        goto cleanup;
-    }
-    width = output_width;
-    height = output_height;
-    pixel_count = (size_t) width * height;
-    core->setVideoBuffer(core, video_buffer, width);
-
-    for (unsigned i = 0; i < frames; ++i) {
-        core->runFrame(core);
+    if (length == -1 && ferror(input)) {
+        perror("Cannot read command file");
+        result = EXIT_FAILURE;
     }
 
-    output = fopen(argv[2], "wb");
-    if (!output) {
-        perror("Cannot create raw frame");
-        goto cleanup;
+    free(line);
+    if (fclose(input) != 0) {
+        perror("Cannot close command file");
+        result = EXIT_FAILURE;
     }
-    if (fwrite(video_buffer, sizeof(*video_buffer), pixel_count, output) != pixel_count) {
-        perror("Cannot write raw frame");
-        goto cleanup;
-    }
-    if (fclose(output) != 0) {
-        output = NULL;
-        perror("Cannot close raw frame");
-        goto cleanup;
-    }
-    output = NULL;
-
-    printf("Saved %ux%u frame after %u frames: %s (%zu bytes/pixel)\n",
-           width, height, frames, argv[2], sizeof(*video_buffer));
-    result = EXIT_SUCCESS;
-
-cleanup:
-    if (output) {
-        fclose(output);
-    }
-    if (config_initialized) {
-        mCoreConfigDeinit(&core->config);
-    }
-    core->deinit(core);
-    free(video_buffer);
+    mgba_session_deinit(&session);
     return result;
 }
