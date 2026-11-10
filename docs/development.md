@@ -13,7 +13,7 @@ under construction
 
 ディレクトリ `mgba_server` 以下で実行します。
 
-### Boostrap
+### Bootstrap
 
 ```sh
 cmake --preset target

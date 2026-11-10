@@ -1,9 +1,3 @@
-add_executable(mgba_server_cli)
-
-target_sources(mgba_server_cli PRIVATE
-    main.c
-)
-
-target_link_libraries(mgba_server_cli PRIVATE
-    mgba
-)
+add_executable(mgba_server main.cpp)
+target_compile_features(mgba_server PRIVATE cxx_std_17)
+target_link_libraries(mgba_server PRIVATE mgba_session)
