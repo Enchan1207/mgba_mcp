@@ -8,7 +8,7 @@ mGBAのソケットサーバとMCPサーバを構成し、AIエージェント�
 
 - `mgba_server/`: mGBAを使うソケットサーバのCMakeプロジェクト
 - `mgba_client/`: macOS向けエミュレータビューア
-- `mgba_mcp/`: MCPサーバ用ディレクトリ（実装予定）
+- `mgba_mcp/`: TypeScript製MCPサーバ
 
 ## ドキュメント
 

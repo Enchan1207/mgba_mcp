@@ -7,7 +7,19 @@
 
 ## MCP server
 
-under construction
+Node.js 20以降が必要です。`mgba_mcp` ディレクトリで実行します。
+
+```sh
+npm ci
+npm run build
+npm test
+npm run lint
+npm run format:check
+```
+
+起動するには `npm start` を実行します。MCPクライアントから接続する場合は、コマンドを `node`、引数を `mgba_mcp/dist/index.js` に設定してください。標準入出力で通信します。
+
+現時点ではMCPサーバの接続基盤のみで、mGBAの操作ツールは未登録です。
 
 ## mGBA server
 
