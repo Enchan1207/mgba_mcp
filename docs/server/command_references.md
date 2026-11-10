@@ -47,6 +47,7 @@ frames=<uint64> pressed_keys=<uint32> has_frame=<true|false>
 | `HELLO CONTROL` / `HELLO VIEW` | 接続直後 | なし | 接続の役割を宣言する |
 | `PRESS <button>` | `CONTROL` | なし | ボタンを押下状態にする |
 | `RELEASE <button>` / `RELEASE ALL` | `CONTROL` | なし | ボタンの押下状態を解除する |
+| `TYPE <button> <frames>` | `CONTROL` | なし | ボタンを押して指定フレーム進め、離して同じフレーム数進める |
 | `STEP <frames>` | `CONTROL` | なし | 1～18000 フレーム進め、最終画面を公開する |
 | `RESET` | `CONTROL` | なし | 入力・経過フレーム数・公開画面を初期化する |
 | `STATUS` | `CONTROL`, `VIEW` | 状態本文 | 現在の状態を返す |
@@ -55,6 +56,8 @@ frames=<uint64> pressed_keys=<uint32> has_frame=<true|false>
 | `QUIT` | `CONTROL` | なし | サーバの終了処理を始める |
 
 `button` は `A`, `B`, `SELECT`, `START`, `RIGHT`, `LEFT`, `UP`, `DOWN` のいずれかです。`RELEASE` のみ `ALL` も指定できます。
+
+`TYPE` の `frames` は各段階で進めるフレーム数（1～18000）です。たとえば `TYPE A 10` は `PRESS A`、`STEP 10`、`RELEASE A`、`STEP 10` と同等で、合計 20 フレーム進みます。ほかのボタンの押下状態は維持されます。画面状態は各 `STEP` 後に更新されます。
 
 `CAPTURE` は応答時点の画面を返し、その接続の通知済み更新番号を記録します。画像がない場合も番号を記録して `NO_FRAME` を返します。
 

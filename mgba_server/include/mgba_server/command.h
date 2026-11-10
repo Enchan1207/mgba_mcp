@@ -1,6 +1,8 @@
 #ifndef MGBA_SERVER_COMMAND_H
 #define MGBA_SERVER_COMMAND_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -18,6 +20,9 @@ enum mgba_command_type {
 
     /// @brief 特定のボタンを離す
     MGBA_COMMAND_RELEASE,
+
+    /// @brief ボタンを指定フレーム押してから同じフレーム数だけ離す
+    MGBA_COMMAND_TYPE,
 
     /// @brief エミュレータをリセットする
     MGBA_COMMAND_RESET,
@@ -51,8 +56,12 @@ enum mgba_button {
 struct mgba_command {
     enum mgba_command_type type;
     union {
-        unsigned frames;
+        uint32_t frames;
         enum mgba_button button;
+        struct {
+            enum mgba_button button;
+            uint32_t frames;
+        } type;
     } argument;
 };
 

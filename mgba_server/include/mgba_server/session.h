@@ -54,7 +54,7 @@ void mgba_session_release(struct mgba_session* session, enum mgba_button button)
 /// @brief 指定したフレーム数だけエミュレーションを進める
 /// @param session 初期化済みセッション
 /// @param frames 実行するフレーム数
-void mgba_session_step(struct mgba_session* session, unsigned frames);
+void mgba_session_step(struct mgba_session* session, uint32_t frames);
 
 /// @brief セッションをリセットし、ボタン・経過フレーム数・画面画像の状態を初期化する
 /// @param session 初期化済みセッション

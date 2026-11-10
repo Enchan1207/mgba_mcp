@@ -33,7 +33,7 @@ void on_signal(int) { signal_stop = 1; }
 std::mutex log_mutex;
 std::string escaped(const std::string& s) {
     std::string out;
-    for (unsigned char c : s) {
+    for (uint8_t c : s) {
         if (c == '\n') out += "\\n";
         else if (c == '\r') out += "\\r";
         else if (c == '\t') out += "\\t";
@@ -49,8 +49,8 @@ void log_line(const char* level, const char* event, const std::string& details) 
     char date[32]; strftime(date, sizeof date, "%Y-%m-%dT%H:%M:%S", &utc);
     fprintf(stderr, "%s.%03ldZ %s %s %s\n", date, ts.tv_nsec / 1000000, level, event, details.c_str());
 }
-void put_le(std::string& s, uint64_t v, unsigned bytes) {
-    for (unsigned i = 0; i < bytes; ++i) s.push_back(char((v >> (i * 8)) & 255));
+void put_le(std::string& s, uint64_t v, uint32_t bytes) {
+    for (uint32_t i = 0; i < bytes; ++i) s.push_back(char((v >> (i * 8)) & 255));
 }
 bool send_all(int fd, const void* data, size_t n) {
     auto* p = static_cast<const char*>(data);
@@ -83,21 +83,21 @@ bool read_line(int fd, std::string& line) {
     }
 }
 bool ascii_line(const std::string& line) {
-    return std::all_of(line.begin(), line.end(), [](unsigned char c) { return c >= 32 && c <= 126; });
+    return std::all_of(line.begin(), line.end(), [](uint8_t c) { return c >= 32 && c <= 126; });
 }
 bool equals_ci(const std::string& a, const char* b) {
     size_t n = strlen(b);
     if (a.size() != n) return false;
     for (size_t i = 0; i < n; ++i)
-        if (toupper(static_cast<unsigned char>(a[i])) != b[i]) return false;
+        if (toupper(static_cast<uint8_t>(a[i])) != b[i]) return false;
     return true;
 }
-bool timeout_arg(const std::string& line, unsigned& value) {
+bool timeout_arg(const std::string& line, uint32_t& value) {
     if (line.size() <= 11 || !equals_ci(line.substr(0, 11), "WAIT_FRAME ")) return false;
     value = 0;
     for (size_t i = 11; i < line.size(); ++i) {
         if (line[i] < '0' || line[i] > '9') return false;
-        unsigned d = unsigned(line[i] - '0');
+        uint32_t d = uint32_t(line[i] - '0');
         if (value > (120000 - d) / 10) return false;
         value = value * 10 + d;
     }
@@ -147,11 +147,12 @@ private:
             Result result;
             auto c = work->command;
             if (c.type == MGBA_COMMAND_STEP) {
-                mgba_session_step(&session_, c.argument.frames);
-                std::lock_guard<std::mutex> lock(state_mutex_);
-                publish_frame();
-                log_line("INFO", "frame_update", "command=STEP version=" + std::to_string(++version_) + " frames=" + std::to_string(frames_));
-                frame_cv_.notify_all();
+                step_and_publish(c.argument.frames, "STEP");
+            } else if (c.type == MGBA_COMMAND_TYPE) {
+                mgba_session_press(&session_, c.argument.type.button);
+                step_and_publish(c.argument.type.frames, "TYPE");
+                mgba_session_release(&session_, c.argument.type.button);
+                step_and_publish(c.argument.type.frames, "TYPE");
             } else if (c.type == MGBA_COMMAND_RESET) {
                 mgba_session_reset(&session_);
                 std::lock_guard<std::mutex> lock(state_mutex_);
@@ -168,6 +169,13 @@ private:
             }
             work->promise.set_value(std::move(result));
         }
+    }
+    void step_and_publish(uint32_t frames, const char* command) {
+        mgba_session_step(&session_, frames);
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        publish_frame();
+        log_line("INFO", "frame_update", "command=" + std::string(command) + " version=" + std::to_string(++version_) + " frames=" + std::to_string(frames_));
+        frame_cv_.notify_all();
     }
     void publish_frame() {
         const color_t* src = mgba_session_frame(&session_);
@@ -200,7 +208,7 @@ private:
         body.append(pixels_.data(), pixels_.size());
         return {true, std::move(body)};
     }
-    Result wait_frame(unsigned ms, uint64_t& seen, bool& seen_set) {
+    Result wait_frame(uint32_t ms, uint64_t& seen, bool& seen_set) {
         std::unique_lock<std::mutex> lock(state_mutex_);
         if (seen_set && version_ == seen && !stopping_) {
             if (!frame_cv_.wait_for(lock, std::chrono::milliseconds(ms), [&] { return version_ != seen || stopping_; }))
@@ -248,7 +256,7 @@ private:
             bool close_after = false;
             if (!ascii_line(line)) result = {false, "BAD_REQUEST"};
             else if (line.size() >= 10 && equals_ci(line.substr(0, 10), "WAIT_FRAME")) {
-                unsigned ms = 0;
+                uint32_t ms = 0;
                 if (!timeout_arg(line, ms)) result = {false, "BAD_REQUEST"};
                 else if (role != "VIEW") result = {false, "FORBIDDEN"};
                 else { result = wait_frame(ms, seen, seen_set); close_after = result.body == "SERVER_SHUTDOWN"; }

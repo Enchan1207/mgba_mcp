@@ -13,12 +13,12 @@ struct token {
 /// @return 入力を参照するトークン。残りが空白のみの場合は長さ 0
 static struct token next_token(const char** cursor) {
     const char* p = *cursor;
-    while (isspace((unsigned char)*p)) {
+    while (isspace((uint8_t)*p)) {
         ++p;
     }
 
     struct token token = {p, 0};
-    while (p[token.length] && !isspace((unsigned char)p[token.length])) {
+    while (p[token.length] && !isspace((uint8_t)p[token.length])) {
         ++token.length;
     }
 
@@ -33,8 +33,8 @@ static struct token next_token(const char** cursor) {
 static int equals(struct token token, const char* word) {
     size_t i = 0;
     while (i < token.length && word[i]) {
-        if (toupper((unsigned char)token.start[i]) !=
-            toupper((unsigned char)word[i])) {
+        if (toupper((uint8_t)token.start[i]) !=
+            toupper((uint8_t)word[i])) {
             return 0;
         }
         ++i;
@@ -57,19 +57,19 @@ static enum mgba_parse_result fail(const char** error, const char* message) {
 /// @param token 数字を含むトークン
 /// @param frames 変換に成功したフレーム数の格納先
 /// @return 1 以上 MGBA_COMMAND_MAX_FRAMES 以下の整数なら 1、それ以外は 0
-static int parse_frames(struct token token, unsigned* frames) {
-    unsigned value = 0;
+static int parse_frames(struct token token, uint32_t* frames) {
+    uint32_t value = 0;
     if (!token.length) {
         return 0;
     }
 
     for (size_t i = 0; i < token.length; ++i) {
-        unsigned char c = (unsigned char)token.start[i];
+        uint8_t c = (uint8_t)token.start[i];
         if (c < '0' || c > '9') {
             return 0;
         }
 
-        unsigned digit = c - '0';
+        uint32_t digit = c - '0';
         if (value > (MGBA_COMMAND_MAX_FRAMES - digit) / 10) {
             return 0;
         }
@@ -161,6 +161,17 @@ enum mgba_parse_result mgba_command_parse(
         }
         if (!parse_button(arg, release, &parsed.argument.button)) {
             return fail(error, "unknown button");
+        }
+    } else if (equals(verb, "TYPE")) {
+        parsed.type = MGBA_COMMAND_TYPE;
+        if (!parse_button(arg, 0, &parsed.argument.type.button)) {
+            return fail(error, "unknown button");
+        }
+        if (!parse_frames(extra, &parsed.argument.type.frames)) {
+            return fail(error, "invalid frame count");
+        }
+        if (next_token(&cursor).length) {
+            return fail(error, "too many arguments");
         }
     } else if (equals(verb, "RESET")) {
         parsed.type = MGBA_COMMAND_RESET;
