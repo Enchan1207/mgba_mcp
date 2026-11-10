@@ -7,8 +7,13 @@ final class ViewerImageView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         NSColor.black.setFill()
         bounds.fill()
-        image?.draw(in: bounds, from: .zero, operation: .copy, fraction: 1,
-                    respectFlipped: true, hints: [.interpolation: NSImageInterpolation.none])
+        guard let image, image.size.width > 0, image.size.height > 0 else { return }
+        let scale = min(bounds.width / image.size.width, bounds.height / image.size.height)
+        let size = NSSize(width: image.size.width * scale, height: image.size.height * scale)
+        let rect = NSRect(x: bounds.midX - size.width / 2, y: bounds.midY - size.height / 2,
+                          width: size.width, height: size.height)
+        image.draw(in: rect, from: .zero, operation: .copy, fraction: 1,
+                   respectFlipped: true, hints: [.interpolation: NSImageInterpolation.none])
     }
 }
 
@@ -23,6 +28,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var client: ViewerClient?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        buildMenu()
         buildSelector()
         selectorWindow.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -30,12 +36,33 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
+    private func buildMenu() {
+        let menu = NSMenu()
+        let appItem = NSMenuItem()
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "終了", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appItem.submenu = appMenu
+        menu.addItem(appItem)
+
+        let editItem = NSMenuItem(title: "編集", action: nil, keyEquivalent: "")
+        let editMenu = NSMenu(title: "編集")
+        editMenu.addItem(withTitle: "カット", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "コピー", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "ペースト", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "すべて選択", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editItem.submenu = editMenu
+        menu.addItem(editItem)
+        NSApp.mainMenu = menu
+    }
+
     private func buildSelector() {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 230),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "mGBA ホストセレクタ"
+        window.animationBehavior = .none
         window.center()
-        window.minSize = NSSize(width: 640, height: 230)
+        window.contentMinSize = NSSize(width: 640, height: 230)
+        window.contentMaxSize = NSSize(width: 10_000, height: 230)
         window.delegate = self
         let content = NSView()
         window.contentView = content
@@ -95,16 +122,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case .update(let frame, let status):
                 self.show(frame: frame, status: status)
             case .failed(let error):
-                let wasViewing = self.viewerWindow != nil
                 self.returnToSelector()
-                if wasViewing {
-                    let alert = NSAlert()
-                    alert.messageText = "通信を終了しました"
-                    alert.informativeText = error.localizedDescription
-                    alert.runModal()
-                } else {
-                    self.errorLabel.stringValue = error.localizedDescription
-                }
+                self.errorLabel.stringValue = error.localizedDescription
             }
         }
     }
@@ -112,10 +131,17 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func quitPressed() { NSApp.terminate(nil) }
 
     private func openViewer() {
+        if let window = viewerWindow {
+            statusLabel?.stringValue = "接続中  ·  画像なし"
+            imageView?.image = nil
+            selectorWindow.orderOut(nil)
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 640),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "mGBA ビューア"
-        window.contentAspectRatio = NSSize(width: 1, height: 1)
+        window.animationBehavior = .none
         window.contentMinSize = NSSize(width: 480, height: 480)
         window.delegate = self
         let content = NSView()
@@ -131,11 +157,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
             image.topAnchor.constraint(equalTo: content.topAnchor),
             image.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             image.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            image.heightAnchor.constraint(equalTo: image.widthAnchor, multiplier: 0.9),
             status.topAnchor.constraint(equalTo: image.bottomAnchor),
             status.bottomAnchor.constraint(equalTo: content.bottomAnchor),
             status.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
-            status.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16)
+            status.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
+            status.heightAnchor.constraint(equalToConstant: 36)
         ])
         viewerWindow = window
         imageView = image
@@ -168,18 +194,24 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func returnToSelector() {
         client?.disconnect()
         client = nil
-        viewerWindow?.delegate = nil
-        viewerWindow?.close()
-        viewerWindow = nil
-        imageView = nil
-        statusLabel = nil
+        viewerWindow?.orderOut(nil)
+        imageView?.image = nil
         selectorWindow.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        selectorWindow.makeFirstResponder(pathField)
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if sender === viewerWindow {
+            returnToSelector()
+            return false
+        }
+        return true
     }
 
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
         if window === selectorWindow { NSApp.terminate(nil) }
-        else if window === viewerWindow { returnToSelector() }
     }
 
     private func label(_ text: String) -> NSTextField {

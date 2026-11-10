@@ -18,6 +18,7 @@ public final class ViewerClient {
 
     public func start(settings: ConnectionSettings, onEvent: @escaping (ViewerEvent) -> Void) {
         queue.async { [self] in
+            var failure: ViewerError?
             do {
                 let fd = try connectSocket(path: settings.socketPath)
                 lock.lock()
@@ -53,11 +54,14 @@ public final class ViewerClient {
                     emit(.update(frame, status), onEvent)
                 }
             } catch let error as ViewerError {
-                emit(.failed(error), onEvent)
+                failure = error
             } catch {
-                emit(.failed(.connection(error.localizedDescription)), onEvent)
+                failure = .connection(error.localizedDescription)
             }
-            closeSocket()
+            let wasStopped = closeSocket()
+            if let failure, !wasStopped {
+                DispatchQueue.main.async { onEvent(.failed(failure)) }
+            }
         }
     }
 
@@ -78,13 +82,16 @@ public final class ViewerClient {
         DispatchQueue.main.async { callback(event) }
     }
 
-    private func closeSocket() {
+    @discardableResult
+    private func closeSocket() -> Bool {
         lock.lock()
+        let wasStopped = stopped
         stopped = true
         let fd = descriptor
         descriptor = -1
         lock.unlock()
         if fd >= 0 { Darwin.close(fd) }
+        return wasStopped
     }
 
     private func connectSocket(path: String) throws -> Int32 {
