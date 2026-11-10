@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -69,6 +70,8 @@ TEST_F(SessionTest, KeepsInputAcrossStepsAndClearsItOnReset) {
     EXPECT_EQ(mgba_session_frame(&session_), session_.pixels);
     EXPECT_EQ(mgba_session_status(&session_).frames_elapsed, 2u);
     EXPECT_TRUE(mgba_session_status(&session_).has_frame);
+    EXPECT_TRUE(std::any_of(std::begin(session_.pixels), std::end(session_.pixels),
+                            [](color_t pixel) { return pixel != 0; }));
 
     mgba_session_release(&session_, MGBA_BUTTON_A);
     EXPECT_EQ(session_.core->getKeys(session_.core), 2u);

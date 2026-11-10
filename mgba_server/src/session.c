@@ -59,6 +59,8 @@ bool mgba_session_init(struct mgba_session* session, const char* rom_path) {
     mCoreConfigSetValue(&core->config, "cgb.sgbModel", "DMG");
     mCoreConfigSetValue(&core->config, "sgb.borders", "0");
     core->reloadConfigOption(core, "sgb.borders", &core->config);
+    // The GB core associates its renderer during reset only when a video buffer is set.
+    core->setVideoBuffer(core, session->pixels, MGBA_SESSION_WIDTH);
     core->reset(core);
 
     unsigned width = 0;
@@ -67,7 +69,6 @@ bool mgba_session_init(struct mgba_session* session, const char* rom_path) {
     if (width != MGBA_SESSION_WIDTH || height != MGBA_SESSION_HEIGHT) {
         goto fail;
     }
-    core->setVideoBuffer(core, session->pixels, MGBA_SESSION_WIDTH);
     return true;
 
 fail:

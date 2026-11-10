@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cerrno>
@@ -120,6 +121,8 @@ TEST_F(ServerTest, FrameResetWaitAndStatus) {
     ASSERT_EQ(image.result, 'S'); ASSERT_EQ(image.body.size(), 92170u);
     EXPECT_EQ(frame_number(image), 2u);
     EXPECT_EQ(uint8_t(image.body[8]), 160); EXPECT_EQ(uint8_t(image.body[9]), 144);
+    EXPECT_TRUE(std::any_of(image.body.begin() + 10, image.body.end(),
+                            [](char channel) { return channel != 0; }));
     EXPECT_EQ(request(control, "STATUS").body, "frames=2 pressed_keys=1 has_frame=true");
     EXPECT_EQ(request(control, "RESET").result, 'S');
     EXPECT_EQ(request(view, "WAIT_FRAME 1000").body, "NO_FRAME");
