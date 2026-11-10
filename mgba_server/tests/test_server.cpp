@@ -52,6 +52,7 @@ protected:
         auto stamp = std::to_string(getpid()) + "-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
         rom_ = std::filesystem::temp_directory_path() / ("mgba-server-" + stamp + ".gb");
         sock_ = std::filesystem::path("/private/tmp") / ("ms-" + stamp + ".sock");
+        log_ = std::filesystem::path("/private/tmp") / ("ms-" + stamp + ".log");
         std::array<uint8_t, 0x8000> rom{};
         rom[0x100] = 0xC3; rom[0x101] = 0x50; rom[0x102] = 0x01;
         rom[0x104] = 0xCE; rom[0x105] = 0xED; rom[0x106] = 0x66; rom[0x107] = 0x66;
@@ -61,6 +62,7 @@ protected:
         f.close();
         pid_ = fork();
         if (pid_ == 0) {
+            freopen(log_.c_str(), "w", stderr);
             execl(SERVER_BINARY, SERVER_BINARY, "--rom", rom_.c_str(), "--socket", sock_.c_str(), nullptr);
             _exit(127);
         }
@@ -74,6 +76,7 @@ protected:
         std::error_code ignored;
         std::filesystem::remove(rom_, ignored);
         std::filesystem::remove(sock_, ignored);
+        std::filesystem::remove(log_, ignored);
     }
     int connect_as(const char* role) {
         int fd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -84,7 +87,7 @@ protected:
         if (hello.result != 'S') { close(fd); return -1; }
         return fd;
     }
-    std::filesystem::path rom_, sock_;
+    std::filesystem::path rom_, sock_, log_;
     pid_t pid_ = -1;
 };
 TEST_F(ServerTest, RolesAndReconnect) {
@@ -135,6 +138,43 @@ TEST_F(ServerTest, QuitWakesWaiterAndRemovesSocket) {
     close(control); close(view);
     int status = 0; EXPECT_EQ(waitpid(pid_, &status, 0), pid_); pid_ = -1;
     EXPECT_FALSE(std::filesystem::exists(sock_));
+}
+TEST_F(ServerTest, ConcurrentCaptureAndUpdates) {
+    int control = connect_as("CONTROL"), view = connect_as("VIEW");
+    ASSERT_GE(control, 0); ASSERT_GE(view, 0);
+    ASSERT_EQ(request(control, "STEP 1").result, 'S');
+    std::array<Reply, 20> captures;
+    std::thread reader([&] {
+        for (auto& capture : captures) capture = request(view, "CAPTURE");
+    });
+    for (int i = 0; i < 20; ++i) ASSERT_EQ(request(control, "STEP 1").result, 'S');
+    reader.join();
+    for (const auto& capture : captures) {
+        ASSERT_EQ(capture.result, 'S');
+        ASSERT_EQ(capture.body.size(), 92170u);
+        EXPECT_GE(frame_number(capture), 1u);
+        EXPECT_LE(frame_number(capture), 21u);
+        EXPECT_EQ(uint8_t(capture.body[8]), 160);
+        EXPECT_EQ(uint8_t(capture.body[9]), 144);
+        for (size_t i = 13; i < capture.body.size(); i += 4) EXPECT_EQ(capture.body[i], 0);
+    }
+    close(view); close(control);
+}
+TEST_F(ServerTest, LogsConnectionRequestResponseAndBinarySummary) {
+    int control = connect_as("CONTROL"), view = connect_as("VIEW");
+    ASSERT_GE(control, 0); ASSERT_GE(view, 0);
+    ASSERT_EQ(request(control, "STEP 1").result, 'S');
+    ASSERT_EQ(request(view, "CAPTURE").result, 'S');
+    ASSERT_EQ(request(control, "QUIT").result, 'S');
+    close(view); close(control);
+    int status = 0; ASSERT_EQ(waitpid(pid_, &status, 0), pid_); pid_ = -1;
+    std::ifstream file(log_);
+    std::string logs((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    EXPECT_NE(logs.find("client_connected client_id=1 role=CONTROL"), std::string::npos);
+    EXPECT_NE(logs.find("command_received client_id=1 request_id=2 command=STEP 1"), std::string::npos);
+    EXPECT_NE(logs.find("response_sent client_id=2 request_id=2 result=S body_length=92170 summary=(binary)"), std::string::npos);
+    EXPECT_NE(logs.find("frame_update command=STEP version=1 frames=1"), std::string::npos);
+    EXPECT_NE(logs.find("client_disconnected"), std::string::npos);
 }
 TEST_F(ServerTest, BoundsAndSplitInput) {
     int control = connect_as("CONTROL"); ASSERT_GE(control, 0);
