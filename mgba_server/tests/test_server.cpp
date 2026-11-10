@@ -129,6 +129,22 @@ TEST_F(ServerTest, FrameResetWaitAndStatus) {
     EXPECT_EQ(request(control, "STATUS").body, "frames=0 pressed_keys=0 has_frame=false");
     close(view); close(control);
 }
+TEST_F(ServerTest, ReadsRawMemoryAsBinary) {
+    int control = connect_as("CONTROL"), view = connect_as("VIEW");
+    ASSERT_GE(control, 0); ASSERT_GE(view, 0);
+    auto bytes = request(control, "READ 0150 2");
+    ASSERT_EQ(bytes.result, 'S');
+    ASSERT_EQ(bytes.body.size(), 2u);
+    EXPECT_EQ(uint8_t(bytes.body[0]), 0x18u);
+    EXPECT_EQ(uint8_t(bytes.body[1]), 0xFEu);
+    auto zero = request(control, "READ D123 1");
+    ASSERT_EQ(zero.result, 'S');
+    ASSERT_EQ(zero.body.size(), 1u);
+    EXPECT_EQ(uint8_t(zero.body[0]), 0u);
+    EXPECT_EQ(request(view, "READ 0150 1").body, "FORBIDDEN");
+    EXPECT_EQ(request(control, "READ FFFF 2").body, "BAD_REQUEST");
+    close(view); close(control);
+}
 TEST_F(ServerTest, QuitWakesWaiterAndRemovesSocket) {
     int control = connect_as("CONTROL"), view = connect_as("VIEW");
     ASSERT_GE(control, 0); ASSERT_GE(view, 0);

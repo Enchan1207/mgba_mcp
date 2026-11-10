@@ -13,12 +13,12 @@ struct token {
 /// @return 入力を参照するトークン。残りが空白のみの場合は長さ 0
 static struct token next_token(const char** cursor) {
     const char* p = *cursor;
-    while (isspace((unsigned char)*p)) {
+    while (isspace((uint8_t)*p)) {
         ++p;
     }
 
     struct token token = {p, 0};
-    while (p[token.length] && !isspace((unsigned char)p[token.length])) {
+    while (p[token.length] && !isspace((uint8_t)p[token.length])) {
         ++token.length;
     }
 
@@ -33,8 +33,8 @@ static struct token next_token(const char** cursor) {
 static int equals(struct token token, const char* word) {
     size_t i = 0;
     while (i < token.length && word[i]) {
-        if (toupper((unsigned char)token.start[i]) !=
-            toupper((unsigned char)word[i])) {
+        if (toupper((uint8_t)token.start[i]) !=
+            toupper((uint8_t)word[i])) {
             return 0;
         }
         ++i;
@@ -57,19 +57,19 @@ static enum mgba_parse_result fail(const char** error, const char* message) {
 /// @param token 数字を含むトークン
 /// @param frames 変換に成功したフレーム数の格納先
 /// @return 1 以上 MGBA_COMMAND_MAX_FRAMES 以下の整数なら 1、それ以外は 0
-static int parse_frames(struct token token, unsigned* frames) {
-    unsigned value = 0;
+static int parse_frames(struct token token, uint32_t* frames) {
+    uint32_t value = 0;
     if (!token.length) {
         return 0;
     }
 
     for (size_t i = 0; i < token.length; ++i) {
-        unsigned char c = (unsigned char)token.start[i];
+        uint8_t c = (uint8_t)token.start[i];
         if (c < '0' || c > '9') {
             return 0;
         }
 
-        unsigned digit = c - '0';
+        uint32_t digit = c - '0';
         if (value > (MGBA_COMMAND_MAX_FRAMES - digit) / 10) {
             return 0;
         }
@@ -81,6 +81,42 @@ static int parse_frames(struct token token, unsigned* frames) {
     }
     *frames = value;
 
+    return 1;
+}
+
+/// @brief 1～4 桁の 16 進アドレスを読み取る
+static int parse_address(struct token token, uint32_t* address) {
+    if (!token.length || token.length > 4) {
+        return 0;
+    }
+    uint32_t value = 0;
+    for (size_t i = 0; i < token.length; ++i) {
+        uint8_t c = (uint8_t)token.start[i];
+        uint32_t digit;
+        if (c >= '0' && c <= '9') digit = c - '0';
+        else if (c >= 'A' && c <= 'F') digit = c - 'A' + 10;
+        else if (c >= 'a' && c <= 'f') digit = c - 'a' + 10;
+        else return 0;
+        value = value * 16 + digit;
+    }
+    *address = value;
+    return 1;
+}
+
+/// @brief アドレス空間を越えない十進バイト数を読み取る
+static int parse_read_length(struct token token, uint32_t address, uint32_t* length) {
+    if (!token.length) return 0;
+    uint32_t value = 0;
+    uint32_t limit = UINT32_C(0x10000) - address;
+    for (size_t i = 0; i < token.length; ++i) {
+        uint8_t c = (uint8_t)token.start[i];
+        if (c < '0' || c > '9') return 0;
+        uint32_t digit = c - '0';
+        if (digit > limit || value > (limit - digit) / 10) return 0;
+        value = value * 10 + digit;
+    }
+    if (!value) return 0;
+    *length = value;
     return 1;
 }
 
@@ -161,6 +197,17 @@ enum mgba_parse_result mgba_command_parse(
         }
         if (!parse_button(arg, release, &parsed.argument.button)) {
             return fail(error, "unknown button");
+        }
+    } else if (equals(verb, "READ")) {
+        parsed.type = MGBA_COMMAND_READ;
+        if (!parse_address(arg, &parsed.argument.read.address)) {
+            return fail(error, "invalid address");
+        }
+        if (!parse_read_length(extra, parsed.argument.read.address, &parsed.argument.read.length)) {
+            return fail(error, "invalid read length");
+        }
+        if (next_token(&cursor).length) {
+            return fail(error, "too many arguments");
         }
     } else if (equals(verb, "RESET")) {
         parsed.type = MGBA_COMMAND_RESET;

@@ -48,6 +48,7 @@ frames=<uint64> pressed_keys=<uint32> has_frame=<true|false>
 | `PRESS <button>` | `CONTROL` | なし | ボタンを押下状態にする |
 | `RELEASE <button>` / `RELEASE ALL` | `CONTROL` | なし | ボタンの押下状態を解除する |
 | `STEP <frames>` | `CONTROL` | なし | 1～18000 フレーム進め、最終画面を公開する |
+| `READ <address> <length>` | `CONTROL` | 読み出したバイト列 | 指定したアドレスから現在のメモリを読み出す |
 | `RESET` | `CONTROL` | なし | 入力・経過フレーム数・公開画面を初期化する |
 | `STATUS` | `CONTROL`, `VIEW` | 状態本文 | 現在の状態を返す |
 | `CAPTURE` | `CONTROL`, `VIEW` | 画像本文 | 現在の公開画面を返す |
@@ -55,6 +56,8 @@ frames=<uint64> pressed_keys=<uint32> has_frame=<true|false>
 | `QUIT` | `CONTROL` | なし | サーバの終了処理を始める |
 
 `button` は `A`, `B`, `SELECT`, `START`, `RIGHT`, `LEFT`, `UP`, `DOWN` のいずれかです。`RELEASE` のみ `ALL` も指定できます。
+
+`READ` の `address` は 1～4 桁の 16 進数（`0000`～`FFFF`、接頭辞なし）、`length` は 1 以上の十進数です。`address + length` は `10000` (16 進数) 以下でなければなりません。成功本文はコマンド実行時点の Game Boy バスから読み出した `length` バイトそのものです。数値文字列やアドレスなどのヘッダは付けません。
 
 `CAPTURE` は応答時点の画面を返し、その接続の通知済み更新番号を記録します。画像がない場合も番号を記録して `NO_FRAME` を返します。
 
