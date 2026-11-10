@@ -51,8 +51,8 @@ protected:
     void SetUp() override {
         auto stamp = std::to_string(getpid()) + "-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
         rom_ = std::filesystem::temp_directory_path() / ("mgba-server-" + stamp + ".gb");
-        sock_ = std::filesystem::path("/private/tmp") / ("ms-" + stamp + ".sock");
-        log_ = std::filesystem::path("/private/tmp") / ("ms-" + stamp + ".log");
+        sock_ = std::filesystem::path("/tmp") / ("ms-" + stamp + ".sock");
+        log_ = std::filesystem::path("/tmp") / ("ms-" + stamp + ".log");
         std::array<uint8_t, 0x8000> rom{};
         rom[0x100] = 0xC3; rom[0x101] = 0x50; rom[0x102] = 0x01;
         rom[0x104] = 0xCE; rom[0x105] = 0xED; rom[0x106] = 0x66; rom[0x107] = 0x66;
