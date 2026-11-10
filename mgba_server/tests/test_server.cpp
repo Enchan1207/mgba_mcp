@@ -129,6 +129,19 @@ TEST_F(ServerTest, FrameResetWaitAndStatus) {
     EXPECT_EQ(request(control, "STATUS").body, "frames=0 pressed_keys=0 has_frame=false");
     close(view); close(control);
 }
+TEST_F(ServerTest, TypePressesAndReleasesAcrossTwoSteps) {
+    int control = connect_as("CONTROL"), view = connect_as("VIEW");
+    ASSERT_GE(control, 0); ASSERT_GE(view, 0);
+    ASSERT_EQ(request(control, "PRESS B").result, 'S');
+    EXPECT_EQ(request(control, "TYPE A 2").result, 'S');
+    EXPECT_EQ(request(control, "STATUS").body, "frames=4 pressed_keys=2 has_frame=true");
+    auto frame = request(view, "CAPTURE");
+    ASSERT_EQ(frame.result, 'S');
+    EXPECT_EQ(frame_number(frame), 4u);
+    EXPECT_EQ(request(view, "TYPE A 1").body, "FORBIDDEN");
+    EXPECT_EQ(request(control, "TYPE ALL 1").body, "BAD_REQUEST");
+    close(view); close(control);
+}
 TEST_F(ServerTest, ReadsRawMemoryAsBinary) {
     int control = connect_as("CONTROL"), view = connect_as("VIEW");
     ASSERT_GE(control, 0); ASSERT_GE(view, 0);

@@ -21,6 +21,9 @@ enum mgba_command_type {
     /// @brief 特定のボタンを離す
     MGBA_COMMAND_RELEASE,
 
+    /// @brief ボタンを指定フレーム押してから同じフレーム数だけ離す
+    MGBA_COMMAND_TYPE,
+
     /// @brief エミュレータをリセットする
     MGBA_COMMAND_RESET,
 
@@ -58,6 +61,10 @@ struct mgba_command {
     union {
         uint32_t frames;
         enum mgba_button button;
+        struct {
+            enum mgba_button button;
+            uint32_t frames;
+        } type;
         struct {
             uint32_t address;
             uint32_t length;

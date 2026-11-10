@@ -47,6 +47,7 @@ frames=<uint64> pressed_keys=<uint32> has_frame=<true|false>
 | `HELLO CONTROL` / `HELLO VIEW` | 接続直後 | なし | 接続の役割を宣言する |
 | `PRESS <button>` | `CONTROL` | なし | ボタンを押下状態にする |
 | `RELEASE <button>` / `RELEASE ALL` | `CONTROL` | なし | ボタンの押下状態を解除する |
+| `TYPE <button> <frames>` | `CONTROL` | なし | ボタンを押して指定フレーム進め、離して同じフレーム数進める |
 | `STEP <frames>` | `CONTROL` | なし | 1～18000 フレーム進め、最終画面を公開する |
 | `READ <address> <length>` | `CONTROL` | 読み出したバイト列 | 指定したアドレスから現在のメモリを読み出す |
 | `RESET` | `CONTROL` | なし | 入力・経過フレーム数・公開画面を初期化する |
@@ -57,11 +58,13 @@ frames=<uint64> pressed_keys=<uint32> has_frame=<true|false>
 
 `button` は `A`, `B`, `SELECT`, `START`, `RIGHT`, `LEFT`, `UP`, `DOWN` のいずれかです。`RELEASE` のみ `ALL` も指定できます。
 
+`TYPE` の `frames` は各段階で進めるフレーム数（1～18000）です。たとえば `TYPE A 10` は `PRESS A`、`STEP 10`、`RELEASE A`、`STEP 10` と同等で、合計 20 フレーム進みます。ほかのボタンの押下状態は維持されます。画面状態は各 `STEP` 後に更新されます。
+
 `READ` の `address` は 1～4 桁の 16 進数（`0000`～`FFFF`、接頭辞なし）、`length` は 1 以上の十進数です。`address + length` は `10000` (16 進数) 以下でなければなりません。成功本文はコマンド実行時点の Game Boy バスから読み出した `length` バイトそのものです。数値文字列やアドレスなどのヘッダは付けません。
 
 `CAPTURE` は応答時点の画面を返し、その接続の通知済み更新番号を記録します。画像がない場合も番号を記録して `NO_FRAME` を返します。
 
-`WAIT_FRAME` は通知済み更新番号が未設定なら現在の画面状態を直ちに返します。以後は `STEP` または `RESET` による更新を待ちます。`RESET` の更新では `NO_FRAME` を返し、通知済み番号を進めます。時間切れの `TIMEOUT` では通知済み番号を維持します。
+`WAIT_FRAME` は通知済み更新番号が未設定なら現在の画面状態を直ちに返します。以後は `STEP`、`TYPE` または `RESET` による更新を待ちます。`RESET` の更新では `NO_FRAME` を返し、通知済み番号を進めます。時間切れの `TIMEOUT` では通知済み番号を維持します。
 
 ## エラーコード
 

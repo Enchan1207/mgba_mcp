@@ -31,6 +31,7 @@ TEST(CommandParserTest, ParsesEveryCommandKind) {
         Case{"STEP 60", MGBA_COMMAND_STEP},
         Case{"PRESS A", MGBA_COMMAND_PRESS},
         Case{"RELEASE A", MGBA_COMMAND_RELEASE},
+        Case{"TYPE A 10", MGBA_COMMAND_TYPE},
         Case{"READ D123 20", MGBA_COMMAND_READ},
         Case{"RESET", MGBA_COMMAND_RESET},
         Case{"STATUS", MGBA_COMMAND_STATUS},
@@ -82,6 +83,20 @@ TEST(CommandParserTest, RejectsInvalidFrameCounts) {
     for (const char* input : {
              "STEP", "STEP 0", "STEP 18001", "STEP -1", "STEP +1",
              "STEP 1.5", "STEP 12x", "STEP 9999999999999999999999999999"}) {
+        expect_error(input);
+    }
+}
+
+TEST(CommandParserTest, ParsesTypeButtonAndFrames) {
+    mgba_command command{};
+    ASSERT_EQ(mgba_command_parse("type a 10", &command, nullptr), MGBA_PARSE_OK);
+    EXPECT_EQ(command.argument.type.button, MGBA_BUTTON_A);
+    EXPECT_EQ(command.argument.type.frames, 10u);
+    ASSERT_EQ(mgba_command_parse("TYPE START 18000", &command, nullptr), MGBA_PARSE_OK);
+    EXPECT_EQ(command.argument.type.button, MGBA_BUTTON_START);
+    EXPECT_EQ(command.argument.type.frames, MGBA_COMMAND_MAX_FRAMES);
+    for (const char* input : {"TYPE", "TYPE A", "TYPE ALL 1", "TYPE X 1", "TYPE A 0",
+                              "TYPE A 18001", "TYPE A -1", "TYPE A 1 extra"}) {
         expect_error(input);
     }
 }

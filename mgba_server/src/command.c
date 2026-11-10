@@ -198,6 +198,17 @@ enum mgba_parse_result mgba_command_parse(
         if (!parse_button(arg, release, &parsed.argument.button)) {
             return fail(error, "unknown button");
         }
+    } else if (equals(verb, "TYPE")) {
+        parsed.type = MGBA_COMMAND_TYPE;
+        if (!parse_button(arg, 0, &parsed.argument.type.button)) {
+            return fail(error, "unknown button");
+        }
+        if (!parse_frames(extra, &parsed.argument.type.frames)) {
+            return fail(error, "invalid frame count");
+        }
+        if (next_token(&cursor).length) {
+            return fail(error, "too many arguments");
+        }
     } else if (equals(verb, "READ")) {
         parsed.type = MGBA_COMMAND_READ;
         if (!parse_address(arg, &parsed.argument.read.address)) {

@@ -147,11 +147,12 @@ private:
             Result result;
             auto c = work->command;
             if (c.type == MGBA_COMMAND_STEP) {
-                mgba_session_step(&session_, c.argument.frames);
-                std::lock_guard<std::mutex> lock(state_mutex_);
-                publish_frame();
-                log_line("INFO", "frame_update", "command=STEP version=" + std::to_string(++version_) + " frames=" + std::to_string(frames_));
-                frame_cv_.notify_all();
+                step_and_publish(c.argument.frames, "STEP");
+            } else if (c.type == MGBA_COMMAND_TYPE) {
+                mgba_session_press(&session_, c.argument.type.button);
+                step_and_publish(c.argument.type.frames, "TYPE");
+                mgba_session_release(&session_, c.argument.type.button);
+                step_and_publish(c.argument.type.frames, "TYPE");
             } else if (c.type == MGBA_COMMAND_RESET) {
                 mgba_session_reset(&session_);
                 std::lock_guard<std::mutex> lock(state_mutex_);
@@ -173,6 +174,13 @@ private:
             }
             work->promise.set_value(std::move(result));
         }
+    }
+    void step_and_publish(uint32_t frames, const char* command) {
+        mgba_session_step(&session_, frames);
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        publish_frame();
+        log_line("INFO", "frame_update", "command=" + std::string(command) + " version=" + std::to_string(++version_) + " frames=" + std::to_string(frames_));
+        frame_cv_.notify_all();
     }
     void publish_frame() {
         const color_t* src = mgba_session_frame(&session_);
