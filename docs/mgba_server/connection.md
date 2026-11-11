@@ -1,14 +1,6 @@
 # サーバへの接続
 
-## 起動
-
-`mgba_server` ディレクトリでビルドした後、Game Boy の ROM と Unix domain socket のパスを指定して起動します。
-
-```sh
-./build/target/cli/mgba_server --rom /path/to/game.gb --socket /private/tmp/mgba.sock
-```
-
-サーバは同じホストのプロセスからの接続を待ちます。ソケットファイルは所有者だけが読み書きできます。指定したパスにファイルが既にある場合は起動せずに終了します。サーバの終了時にはソケットファイルを削除します。
+先に [`mgba_server` を起動](usage.md)し、指定したソケットパスへ同じホストから接続します。
 
 ## 接続と役割の宣言
 
