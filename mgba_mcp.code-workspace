@@ -1,13 +1,13 @@
 {
   "folders": [
     {
-      "path": "./mgba_server",
+      "path": "./server",
     },
     {
-      "path": "./mgba_client",
+      "path": "./client",
     },
     {
-      "path": "./mgba_mcp",
+      "path": "./mcp",
     },
     {
       "path": "./docs",
