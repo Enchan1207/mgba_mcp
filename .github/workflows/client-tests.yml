@@ -3,12 +3,12 @@ name: Client tests
 on:
   pull_request:
     paths:
-      - 'mgba_client/**'
+      - 'client/**'
       - '.github/workflows/client-tests.yml'
   push:
     branches: [main]
     paths:
-      - 'mgba_client/**'
+      - 'client/**'
       - '.github/workflows/client-tests.yml'
 
 permissions:
@@ -17,9 +17,12 @@ permissions:
 jobs:
   test:
     runs-on: macos-15
+    defaults:
+      run:
+        working-directory: client
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Test client
-        run: swift test --package-path mgba_client
+        run: swift test --package-path

@@ -3,12 +3,12 @@ name: Server tests
 on:
   pull_request:
     paths:
-      - 'mgba_server/**'
+      - 'server/**'
       - '.github/workflows/server-tests.yml'
   push:
     branches: [main]
     paths:
-      - 'mgba_server/**'
+      - 'server/**'
       - '.github/workflows/server-tests.yml'
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: mgba_server
+        working-directory: server
     steps:
       - uses: actions/checkout@v7
         with:
@@ -32,7 +32,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ninja-build
         working-directory: .
       - name: Configure tests
-        run: cmake --preset target -Dmgba_server_BUILD_TESTS=ON
+        run: cmake --preset target -Dserver_BUILD_TESTS=ON
       - name: Build
         run: cmake --build --preset target
       - name: Test server

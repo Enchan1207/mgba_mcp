@@ -3,12 +3,12 @@ name: MCP server tests
 on:
   pull_request:
     paths:
-      - 'mgba_mcp/**'
+      - 'mcp/**'
       - '.github/workflows/mcp-tests.yml'
   push:
     branches: [main]
     paths:
-      - 'mgba_mcp/**'
+      - 'mcp/**'
       - '.github/workflows/mcp-tests.yml'
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: mgba_mcp
+        working-directory: mcp
     steps:
       - uses: actions/checkout@v7
         with:
@@ -31,7 +31,7 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
-          cache-dependency-path: mgba_mcp/pnpm-lock.yaml
+          cache-dependency-path: mcp/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm run typecheck
