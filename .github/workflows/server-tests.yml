@@ -32,7 +32,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ninja-build
         working-directory: .
       - name: Configure tests
-        run: cmake --preset target -Dserver_BUILD_TESTS=ON
+        run: cmake --preset target -Dmgba_server_BUILD_TESTS=ON
       - name: Build
         run: cmake --build --preset target
       - name: Test server
