@@ -17,4 +17,7 @@
       "path": "./",
     },
   ],
+  "settings": {
+    "swift.autoGenerateLaunchConfigurations": false,
+  },
 }

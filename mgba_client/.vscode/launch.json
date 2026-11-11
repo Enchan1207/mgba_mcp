@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:mgba_client}",
+      "name": "Debug mgba_client",
+      "target": "mgba_client",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug mgba_client"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:mgba_client}",
+      "name": "Release mgba_client",
+      "target": "mgba_client",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release mgba_client"
+    }
+  ]
+}
