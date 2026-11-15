@@ -10,10 +10,12 @@ export type EmulatorConnection = {
   pending: Promise<void>
 }
 
-function parseResponseHeader(header: Buffer): {
+const parseResponseHeader = (
+  header: Buffer,
+): {
   success: boolean
   length: number
-} {
+} => {
   const length = header.readUInt32LE(1)
   if ((header[0] !== 0x53 && header[0] !== 0x45) || length > MAX_BODY_LENGTH) {
     throw new Error('Invalid server response header')
@@ -21,26 +23,26 @@ function parseResponseHeader(header: Buffer): {
   return { success: header[0] === 0x53, length }
 }
 
-function serverCommandError(
+const serverCommandError = (
   command: string,
   code: string,
-): Error & { serverCode: string } {
+): Error & { serverCode: string } => {
   return Object.assign(new Error(`${command} failed: ${code}`), {
     serverCode: code,
   })
 }
 
-export function isServerCommandError(
+export const isServerCommandError = (
   error: unknown,
-): error is Error & { serverCode: string } {
+): error is Error & { serverCode: string } => {
   return error instanceof Error && 'serverCode' in error
 }
 
-async function exchange(
+const exchange = async (
   socket: Socket,
   reader: SocketReader,
   command: string,
-): Promise<Buffer> {
+): Promise<Buffer> => {
   await new Promise<void>((resolve, reject) => {
     socket.write(`${command}\n`, (error?: Error | null) => {
       if (error) reject(error)
@@ -56,10 +58,10 @@ async function exchange(
   return body
 }
 
-export function request(
+export const request = (
   connection: EmulatorConnection,
   command: string,
-): Promise<Buffer> {
+): Promise<Buffer> => {
   const result = connection.pending.then(() =>
     exchange(connection.socket, connection.reader, command),
   )
@@ -70,9 +72,9 @@ export function request(
   return result
 }
 
-export async function connectEmulator(
+export const connectEmulator = async (
   path: string,
-): Promise<EmulatorConnection> {
+): Promise<EmulatorConnection> => {
   const socket = createConnection({ path })
   try {
     await new Promise<void>((resolve, reject) => {
@@ -101,13 +103,13 @@ export async function connectEmulator(
   }
 }
 
-export function closeEmulator(connection: EmulatorConnection): void {
+export const closeEmulator = (connection: EmulatorConnection): void => {
   connection.socket.destroy()
 }
 
-export function createEmulatorCommand(
+export const createEmulatorCommand = (
   path: string,
-): (command: string) => Promise<Buffer> {
+): ((command: string) => Promise<Buffer>) => {
   let connection: EmulatorConnection | undefined
   return async (command) => {
     if (!connection || connection.socket.destroyed)
@@ -124,7 +126,7 @@ export function createEmulatorCommand(
   }
 }
 
-export function parseTotalFrames(body: Buffer): number {
+export const parseTotalFrames = (body: Buffer): number => {
   const match = /^frames=(\d+) pressed_keys=(\d+) has_frame=(true|false)$/.exec(
     body.toString('ascii'),
   )

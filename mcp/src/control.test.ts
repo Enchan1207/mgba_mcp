@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream'
 import { parseTotalFrames } from './control.js'
 import { SocketReader } from './lib/socket-reader/index.js'
 
@@ -7,11 +8,11 @@ describe('SocketReader', () => {
   let disconnected = false
 
   beforeAll(async () => {
-    async function* chunks(): AsyncGenerator<Buffer> {
-      yield Buffer.from([1, 2])
-      yield Buffer.from([3, 4, 5])
-    }
-    const reader = new SocketReader(chunks())
+    const reader = new SocketReader(
+      Readable.from([Buffer.from([1, 2]), Buffer.from([3, 4, 5])])[
+        Symbol.asyncIterator
+      ](),
+    )
     first = await reader.readExactly(3)
     second = await reader.readExactly(2)
     try {

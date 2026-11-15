@@ -14,14 +14,14 @@ const buttonSchema = z.enum([
 ])
 const framesSchema = z.number().int().min(1).max(18000).default(10)
 
-function socketPathFromEnvironment(): string {
+const socketPathFromEnvironment = (): string => {
   const path = process.env['MGBA_MCP_SOCKET_PATH']
   if (!path)
     throw new Error('MGBA_MCP_SOCKET_PATH must be set to a non-empty path')
   return path
 }
 
-export function createServer(): McpServer {
+export const createServer = (): McpServer => {
   const command = createEmulatorCommand(socketPathFromEnvironment())
   const server = new McpServer({ name: 'mgba-mcp', version: '0.1.0' })
   let previousOperation: Promise<void> = Promise.resolve()
