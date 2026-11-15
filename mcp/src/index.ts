@@ -1,11 +1,20 @@
-#!/usr/bin/env node
+import { McpServer } from '@modelcontextprotocol/server'
+import { createPressButtonTool } from './features/tools/press-button/index.js'
+import type { ToolConnection } from './lib/tool/index.js'
 
-import { serveStdio } from '@modelcontextprotocol/server/stdio'
-import { createServer } from './server.js'
+export const createMcpServer = (connection: ToolConnection): McpServer => {
+  const server = new McpServer({ name: 'mgba-mcp', version: '0.1.0' })
+  for (const tool of [createPressButtonTool(connection.command)]) {
+    server.registerTool(
+      tool.name,
+      {
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        ...(tool.outputSchema ? { outputSchema: tool.outputSchema } : {}),
+      },
+      (input) => connection.runOperation(() => tool.execute(input)),
+    )
+  }
 
-serveStdio(createServer, {
-  onerror: (error) => {
-    console.error('mgba-mcp stdio error:', error)
-    process.exitCode = 1
-  },
-})
+  return server
+}

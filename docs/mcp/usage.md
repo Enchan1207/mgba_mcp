@@ -24,12 +24,12 @@ pnpm run build
 MGBA_MCP_SOCKET_PATH=/private/tmp/mgba.sock pnpm start
 ```
 
-MCPクライアントから起動する場合は、コマンドを `node`、引数をビルド後の `mgba_mcp/dist/index.js` の絶対パスに設定してください。標準入出力で通信します。
+MCPクライアントから起動する場合は、コマンドを`node`、引数をビルド後の`mgba_mcp/dist/handler.js`の絶対パスに設定してください。標準入出力で通信します。
 
 ## テスト・チェック
 
 ```sh
-pnpm test
+pnpm test --run
 pnpm run lint
-pnpm run format:check
+pnpm exec oxfmt --check src package.json
 ```

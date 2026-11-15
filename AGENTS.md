@@ -12,7 +12,12 @@
 
 ### mgba_mcp
 
-- 現在構成されていません。
+- `@modelcontextprotocol/server` によるMCPサーバが構成されています。
+- pnpmパッケージが構成されています。
+- vitestによるテストが構成されています。
+- このディレクトリ以下のファイルを変更した場合は、以下を必ず確認します:
+  - `pnpm fmt && pnpm lint` がエラーなく成功すること
+  - `pnpm test` がfail caseなく完了すること
 
 ## rules
 

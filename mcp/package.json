@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "bin": {
-    "mgba-mcp": "./dist/index.js"
+    "mgba-mcp": "./dist/handler.js"
   },
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "start": "node dist/index.js",
+    "start": "node dist/handler.js",
     "test": "vitest",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
@@ -21,8 +21,10 @@
   "devDependencies": {
     "@tsconfig/strictest": "^2.0.8",
     "@types/node": "^22.0.0",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
     "oxfmt": "^0.78.0",
     "oxlint": "^1.93.0",
+    "oxlint-tsgolint": "^7.0.2007",
     "typescript": "^6.0.0",
     "vitest": "^5.1.0"
   },

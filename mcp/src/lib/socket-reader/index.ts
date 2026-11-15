@@ -1,4 +1,4 @@
-import { ServerDisconnectedError } from './errors'
+import { ServerDisconnectedError } from './errors.js'
 
 /**
  * バイトストリームから指定長のバイト列を順次取り出すリーダー

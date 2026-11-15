@@ -1,128 +1,196 @@
 import { createConnection, type Socket } from 'node:net'
-import { SocketReader } from 'src/lib/socket-reader'
+import { SocketReader } from './lib/socket-reader/index.js'
 
 const MAX_BODY_LENGTH = 1024 * 1024
 const MAX_SAFE_FRAMES = BigInt(Number.MAX_SAFE_INTEGER)
+const DEFAULT_CONNECT_TIMEOUT_MS = 5000
+const DEFAULT_RESPONSE_TIMEOUT_MS = 30000
 
-export type EmulatorConnection = {
-  socket: Socket
-  reader: SocketReader
-  pending: Promise<void>
-}
+type Timeouts = { connectTimeoutMs: number; responseTimeoutMs: number }
 
-const parseResponseHeader = (
-  header: Buffer,
-): {
-  success: boolean
-  length: number
-} => {
+type EmulatorConnection = { socket: Socket; reader: SocketReader }
+
+const parseResponseHeader = (header: Buffer) => {
   const length = header.readUInt32LE(1)
-  if ((header[0] !== 0x53 && header[0] !== 0x45) || length > MAX_BODY_LENGTH) {
+  if ((header[0] !== 0x53 && header[0] !== 0x45) || length > MAX_BODY_LENGTH)
     throw new Error('Invalid server response header')
-  }
   return { success: header[0] === 0x53, length }
 }
 
-const serverCommandError = (
-  command: string,
-  code: string,
-): Error & { serverCode: string } => {
-  return Object.assign(new Error(`${command} failed: ${code}`), {
-    serverCode: code,
-  })
-}
+const serverCommandError = (command: string, code: string) =>
+  Object.assign(new Error(`${command} failed: ${code}`), { serverCode: code })
 
 export const isServerCommandError = (
   error: unknown,
-): error is Error & { serverCode: string } => {
-  return error instanceof Error && 'serverCode' in error
-}
+): error is Error & { serverCode: string } =>
+  error instanceof Error && 'serverCode' in error
 
 const exchange = async (
-  socket: Socket,
-  reader: SocketReader,
-  command: string,
-): Promise<Buffer> => {
-  await new Promise<void>((resolve, reject) => {
-    socket.write(`${command}\n`, (error?: Error | null) => {
-      if (error) reject(error)
-      else resolve()
-    })
-  })
-  const { success, length } = parseResponseHeader(await reader.readExactly(5))
-  const body = await reader.readExactly(length)
-  if ((await reader.readExactly(1))[0] !== 0x0a) {
-    throw new Error('Invalid server response terminator')
-  }
-  if (!success) throw serverCommandError(command, body.toString('ascii'))
-  return body
-}
-
-export const request = (
   connection: EmulatorConnection,
   command: string,
+  responseTimeoutMs: number,
 ): Promise<Buffer> => {
-  const result = connection.pending.then(() =>
-    exchange(connection.socket, connection.reader, command),
+  const { socket, reader } = connection
+  const timer = setTimeout(
+    () => socket.destroy(new Error(`${command} response timed out`)),
+    responseTimeoutMs,
   )
-  connection.pending = result.then(
-    () => undefined,
-    () => undefined,
-  )
-  return result
-}
-
-export const connectEmulator = async (
-  path: string,
-): Promise<EmulatorConnection> => {
-  const socket = createConnection({ path })
   try {
     await new Promise<void>((resolve, reject) => {
-      const onConnect = () => {
-        socket.off('error', onError)
-        resolve()
-      }
-      const onError = (error: Error) => {
-        socket.off('connect', onConnect)
-        reject(error)
-      }
-      socket.once('connect', onConnect)
-      socket.once('error', onError)
+      socket.write(`${command}\n`, (error?: Error | null) => {
+        if (error) reject(error)
+        else resolve()
+      })
     })
-    socket.on('error', () => socket.destroy())
+    const { success, length } = parseResponseHeader(await reader.readExactly(5))
+    const body = await reader.readExactly(length)
+    if ((await reader.readExactly(1))[0] !== 0x0a)
+      throw new Error('Invalid server response terminator')
+    if (!success) throw serverCommandError(command, body.toString('ascii'))
+    return body
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const connectEmulator = async (
+  path: string,
+  timeouts: Timeouts,
+  signal: AbortSignal,
+): Promise<EmulatorConnection> => {
+  const socket = createConnection({ path })
+  socket.on('error', () => undefined)
+  const onAbort = () =>
+    socket.destroy(new Error('CONTROL connection is closed'))
+  signal.addEventListener('abort', onAbort, { once: true })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        socket.destroy(new Error('CONTROL connection timed out'))
+      }, timeouts.connectTimeoutMs)
+      socket.once('connect', () => {
+        clearTimeout(timer)
+        resolve()
+      })
+      socket.once('error', (error) => {
+        clearTimeout(timer)
+        reject(error)
+      })
+    })
     const connection = {
       socket,
       reader: new SocketReader(socket[Symbol.asyncIterator]()),
-      pending: Promise.resolve(),
     }
-    await request(connection, 'HELLO CONTROL')
+    await exchange(connection, 'HELLO CONTROL', timeouts.responseTimeoutMs)
     return connection
   } catch (error) {
     socket.destroy()
     throw error
+  } finally {
+    signal.removeEventListener('abort', onAbort)
   }
 }
 
-export const closeEmulator = (connection: EmulatorConnection): void => {
-  connection.socket.destroy()
-}
-
-export const createEmulatorCommand = (
+export const createControlConnection = (
   path: string,
-): ((command: string) => Promise<Buffer>) => {
+  timeouts: Timeouts = {
+    connectTimeoutMs: DEFAULT_CONNECT_TIMEOUT_MS,
+    responseTimeoutMs: DEFAULT_RESPONSE_TIMEOUT_MS,
+  },
+) => {
   let connection: EmulatorConnection | undefined
-  return async (command) => {
-    if (!connection || connection.socket.destroyed)
-      connection = await connectEmulator(path)
+  let pendingConnection: Promise<EmulatorConnection> | undefined
+  let active = false
+  let failed = false
+  let cleanupAllowed = false
+  let closed = false
+  let operationId = 0
+  let previousCommand: Promise<void> = Promise.resolve()
+  const abort = new AbortController()
+
+  const discard = () => {
+    connection?.socket.destroy()
+    connection = undefined
+  }
+
+  const getConnection = async (): Promise<EmulatorConnection> => {
+    if (connection && !connection.socket.destroyed) return connection
+    pendingConnection ??= connectEmulator(path, timeouts, abort.signal)
     try {
-      return await request(connection, command)
-    } catch (error) {
-      if (!isServerCommandError(error)) {
-        closeEmulator(connection)
-        connection = undefined
+      const connected = await pendingConnection
+      if (closed) {
+        connected.socket.destroy()
+        throw new Error('CONTROL connection is closed')
       }
-      throw error
+      connection = connected
+      return connected
+    } finally {
+      pendingConnection = undefined
     }
+  }
+
+  return {
+    beginOperation: () => {
+      if (closed || active) throw new Error('CONTROL operation cannot start')
+      active = true
+      operationId += 1
+      failed = false
+      cleanupAllowed = false
+    },
+    endOperation: () => {
+      active = false
+      failed = false
+      cleanupAllowed = false
+    },
+    command: (command: string): Promise<Buffer> => {
+      if (closed || !active)
+        return Promise.reject(new Error('CONTROL operation is unavailable'))
+      const requestOperationId = operationId
+      const result = previousCommand.then(async () => {
+        if (closed || !active || requestOperationId !== operationId)
+          throw new Error('CONTROL operation is unavailable')
+        if (failed && (!cleanupAllowed || command !== 'RELEASE ALL'))
+          throw new Error('CONTROL operation has already failed')
+        let connected: EmulatorConnection
+        try {
+          connected = await getConnection()
+        } catch (error) {
+          failed = true
+          cleanupAllowed = false
+          discard()
+          throw error
+        }
+        try {
+          const body = await exchange(
+            connected,
+            command,
+            timeouts.responseTimeoutMs,
+          )
+          if (failed) cleanupAllowed = false
+          return body
+        } catch (error) {
+          if (isServerCommandError(error)) {
+            failed = true
+            cleanupAllowed = command !== 'RELEASE ALL'
+          } else {
+            failed = true
+            cleanupAllowed = false
+            discard()
+          }
+          throw error
+        }
+      })
+      previousCommand = result.then(
+        () => undefined,
+        () => undefined,
+      )
+      return result
+    },
+    close: () => {
+      closed = true
+      abort.abort()
+      discard()
+    },
   }
 }
 
