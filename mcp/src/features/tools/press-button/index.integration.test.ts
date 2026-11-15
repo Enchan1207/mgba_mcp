@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const entrypoint = fileURLToPath(
-  new URL('../../../../dist/handler.js', import.meta.url),
+  new URL('../../../handler.ts', import.meta.url),
 )
 
 describe('press_button', () => {
@@ -64,7 +64,7 @@ describe('press_button', () => {
       })
     })
 
-    child = spawn(process.execPath, [entrypoint], {
+    child = spawn('tsx', [entrypoint], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, MGBA_MCP_SOCKET_PATH: socketPath },
     })

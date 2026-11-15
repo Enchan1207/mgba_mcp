@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream'
-import { parseTotalFrames } from './control.js'
-import { SocketReader } from './lib/socket-reader/index.js'
+import { parseTotalFrames } from './control'
+import { SocketReader } from './lib/socket-reader/index'
 
 describe('SocketReader', () => {
   let first: Buffer

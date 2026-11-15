@@ -2,13 +2,10 @@
   "name": "mgba-mcp",
   "version": "0.1.0",
   "private": true,
-  "bin": {
-    "mgba-mcp": "./dist/handler.js"
-  },
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "start": "node dist/handler.js",
+    "start": "tsx src/handler.ts",
     "test": "vitest",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
@@ -25,6 +22,7 @@
     "oxfmt": "^0.78.0",
     "oxlint": "^1.93.0",
     "oxlint-tsgolint": "^7.0.2007",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.0",
     "vitest": "^5.1.0"
   },

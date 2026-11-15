@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/server'
-import { createPressButtonTool } from './features/tools/press-button/index.js'
-import type { ToolConnection } from './lib/tool/index.js'
+import { createPressButtonTool } from './features/tools/press-button/index'
+import type { ToolConnection } from './lib/tool/index'
 
 export const createMcpServer = (connection: ToolConnection): McpServer => {
   const server = new McpServer({ name: 'mgba-mcp', version: '0.1.0' })

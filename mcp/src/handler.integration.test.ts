@@ -9,14 +9,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const entrypoint = fileURLToPath(new URL('../dist/handler.js', import.meta.url))
+const entrypoint = fileURLToPath(new URL('./handler.ts', import.meta.url))
 
 describe('stdio server', () => {
   let child: ChildProcessWithoutNullStreams | undefined
   let actual: unknown
 
   beforeAll(async () => {
-    child = spawn(process.execPath, [entrypoint], {
+    child = spawn('tsx', [entrypoint], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,
@@ -76,7 +76,7 @@ describe('起動設定', () => {
   test('ソケットパスが未設定なら起動に失敗する', () => {
     const env = { ...process.env }
     delete env['MGBA_MCP_SOCKET_PATH']
-    const result = spawnSync(process.execPath, [entrypoint], { env })
+    const result = spawnSync('tsx', [entrypoint], { env })
     expect(result.status).toBe(1)
   })
 })
@@ -145,7 +145,7 @@ describe('並行するstdio要求', () => {
       socketServer!.listen(socketPath, () => resolve())
     })
 
-    child = spawn(process.execPath, [entrypoint], {
+    child = spawn('tsx', [entrypoint], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, MGBA_MCP_SOCKET_PATH: socketPath },
     })

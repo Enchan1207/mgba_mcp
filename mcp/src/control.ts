@@ -1,5 +1,5 @@
 import { createConnection, type Socket } from 'node:net'
-import { SocketReader } from './lib/socket-reader/index.js'
+import { SocketReader } from './lib/socket-reader/index'
 
 const MAX_BODY_LENGTH = 1024 * 1024
 const MAX_SAFE_FRAMES = BigInt(Number.MAX_SAFE_INTEGER)

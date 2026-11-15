@@ -1,4 +1,4 @@
-import { createOperationQueue } from './index.js'
+import { createOperationQueue } from './index'
 
 describe('createOperationQueue', () => {
   let order: string[] = []

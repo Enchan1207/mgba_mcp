@@ -2,7 +2,7 @@ import { createServer, type Server, type Socket } from 'node:net'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createControlConnection } from './control.js'
+import { createControlConnection } from './control'
 
 describe('CONTROL接続', () => {
   let directory: string | undefined

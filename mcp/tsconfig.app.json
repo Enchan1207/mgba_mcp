@@ -7,6 +7,8 @@
     "moduleResolution": "bundler",
     "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
     "rootDir": "src",
     "outDir": "dist",
     "types": ["node", "vitest/globals"],
@@ -14,5 +16,6 @@
       "src/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.integration.test.ts"]
 }

@@ -7,7 +7,7 @@ TypeScript 製の MCP サーバです。
 - Node.js 22.12 以降
 - pnpm 11.8.0
 
-特に指定のない限り、コマンドは `mgba_mcp` ディレクトリで実行します。
+特に指定のない限り、コマンドは`mgba_mcp/mcp`ディレクトリで実行します。
 
 ## ビルド
 
@@ -15,6 +15,8 @@ TypeScript 製の MCP サーバです。
 pnpm install --frozen-lockfile
 pnpm run build
 ```
+
+ビルドでは型宣言ファイルを`dist`に出力します。
 
 ## 実行
 
@@ -24,12 +26,13 @@ pnpm run build
 MGBA_MCP_SOCKET_PATH=/private/tmp/mgba.sock pnpm start
 ```
 
-MCPクライアントから起動する場合は、コマンドを`node`、引数をビルド後の`mgba_mcp/dist/handler.js`の絶対パスに設定してください。標準入出力で通信します。
+MCPクライアントから起動する場合は、コマンドを`mgba_mcp/mcp/node_modules/.bin/tsx`の絶対パス、引数を`mgba_mcp/mcp/src/handler.ts`の絶対パスに設定してください。標準入出力で通信します。
 
 ## テスト・チェック
 
 ```sh
-pnpm test --run
+pnpm test
+pnpm run build
 pnpm run lint
-pnpm exec oxfmt --check src package.json
+pnpm fmt --check
 ```

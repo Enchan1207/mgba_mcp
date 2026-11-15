@@ -1,9 +1,7 @@
-#!/usr/bin/env node
-
 import { serveStdio } from '@modelcontextprotocol/server/stdio'
-import { createControlConnection } from './control.js'
-import { createMcpServer } from './index.js'
-import { createOperationQueue } from './lib/operation-queue/index.js'
+import { createControlConnection } from './control'
+import { createMcpServer } from './index'
+import { createOperationQueue } from './lib/operation-queue/index'
 
 const socketPath = process.env['MGBA_MCP_SOCKET_PATH']
 if (!socketPath)
