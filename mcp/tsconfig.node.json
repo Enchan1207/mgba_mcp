@@ -8,5 +8,5 @@
     "types": ["node", "vitest/globals"]
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["vitest.config.ts"]
+  "exclude": ["vitest.config.ts", "oxfmt.config.ts"]
 }

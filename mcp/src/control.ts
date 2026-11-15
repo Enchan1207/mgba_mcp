@@ -1,123 +1,138 @@
-import { createConnection, type Socket } from "node:net";
+import { createConnection, type Socket } from 'node:net'
+import { SocketReader } from 'src/lib/socket-reader'
 
-const MAX_BODY_LENGTH = 1024 * 1024;
-const MAX_SAFE_FRAMES = BigInt(Number.MAX_SAFE_INTEGER);
+const MAX_BODY_LENGTH = 1024 * 1024
+const MAX_SAFE_FRAMES = BigInt(Number.MAX_SAFE_INTEGER)
 
-export class ControlConnection {
-  private socket: Socket | undefined;
-  private reader: AsyncIterator<Buffer> | undefined;
-  private remaining = Buffer.alloc(0);
-  private connecting: Promise<void> | undefined;
+export type EmulatorConnection = {
+  socket: Socket
+  reader: SocketReader
+  pending: Promise<void>
+}
 
-  constructor(private readonly socketPath: string) {}
-
-  async command(command: string): Promise<Buffer> {
-    await this.connect();
-    try {
-      return await this.exchange(command);
-    } catch (error) {
-      if (!(error instanceof ServerCommandError)) this.close();
-      throw error;
-    }
+function parseResponseHeader(header: Buffer): {
+  success: boolean
+  length: number
+} {
+  const length = header.readUInt32LE(1)
+  if ((header[0] !== 0x53 && header[0] !== 0x45) || length > MAX_BODY_LENGTH) {
+    throw new Error('Invalid server response header')
   }
+  return { success: header[0] === 0x53, length }
+}
 
-  close(): void {
-    this.socket?.destroy();
-    this.socket = undefined;
-    this.reader = undefined;
-    this.remaining = Buffer.alloc(0);
+function serverCommandError(
+  command: string,
+  code: string,
+): Error & { serverCode: string } {
+  return Object.assign(new Error(`${command} failed: ${code}`), {
+    serverCode: code,
+  })
+}
+
+export function isServerCommandError(
+  error: unknown,
+): error is Error & { serverCode: string } {
+  return error instanceof Error && 'serverCode' in error
+}
+
+async function exchange(
+  socket: Socket,
+  reader: SocketReader,
+  command: string,
+): Promise<Buffer> {
+  await new Promise<void>((resolve, reject) => {
+    socket.write(`${command}\n`, (error?: Error | null) => {
+      if (error) reject(error)
+      else resolve()
+    })
+  })
+  const { success, length } = parseResponseHeader(await reader.readExactly(5))
+  const body = await reader.readExactly(length)
+  if ((await reader.readExactly(1))[0] !== 0x0a) {
+    throw new Error('Invalid server response terminator')
   }
+  if (!success) throw serverCommandError(command, body.toString('ascii'))
+  return body
+}
 
-  private async connect(): Promise<void> {
-    if (this.socket) return;
-    if (!this.connecting) {
-      this.connecting = this.open();
-    }
-    try {
-      await this.connecting;
-    } finally {
-      this.connecting = undefined;
-    }
-  }
+export function request(
+  connection: EmulatorConnection,
+  command: string,
+): Promise<Buffer> {
+  const result = connection.pending.then(() =>
+    exchange(connection.socket, connection.reader, command),
+  )
+  connection.pending = result.then(
+    () => undefined,
+    () => undefined,
+  )
+  return result
+}
 
-  private async open(): Promise<void> {
-    const socket = createConnection(this.socketPath);
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const onConnect = () => {
-          socket.off("error", onError);
-          resolve();
-        };
-        const onError = (error: Error) => {
-          socket.off("connect", onConnect);
-          reject(error);
-        };
-        socket.once("connect", onConnect);
-        socket.once("error", onError);
-      });
-      this.socket = socket;
-      socket.on("error", () => {
-        if (this.socket === socket) this.close();
-      });
-      socket.on("close", () => {
-        if (this.socket === socket) this.close();
-      });
-      this.reader = socket[Symbol.asyncIterator]();
-      await this.exchange("HELLO CONTROL");
-    } catch (error) {
-      this.close();
-      socket.destroy();
-      throw error;
-    }
-  }
-
-  private async exchange(command: string): Promise<Buffer> {
-    const socket = this.socket;
-    if (!socket) throw new Error("CONTROL connection is unavailable");
+export async function connectEmulator(
+  path: string,
+): Promise<EmulatorConnection> {
+  const socket = createConnection({ path })
+  try {
     await new Promise<void>((resolve, reject) => {
-      socket.write(`${command}\n`, (error?: Error | null) => {
-        if (error) reject(error);
-        else resolve();
-      });
-    });
-    const header = await this.readExact(5);
-    const length = header.readUInt32LE(1);
-    if ((header[0] !== 0x53 && header[0] !== 0x45) || length > MAX_BODY_LENGTH) {
-      throw new Error("Invalid server response header");
+      const onConnect = () => {
+        socket.off('error', onError)
+        resolve()
+      }
+      const onError = (error: Error) => {
+        socket.off('connect', onConnect)
+        reject(error)
+      }
+      socket.once('connect', onConnect)
+      socket.once('error', onError)
+    })
+    socket.on('error', () => socket.destroy())
+    const connection = {
+      socket,
+      reader: new SocketReader(socket[Symbol.asyncIterator]()),
+      pending: Promise.resolve(),
     }
-    const body = await this.readExact(length);
-    if ((await this.readExact(1))[0] !== 0x0a) {
-      throw new Error("Invalid server response terminator");
-    }
-    if (header[0] === 0x45) throw new ServerCommandError(command, body.toString("ascii"));
-    return body;
-  }
-
-  private async readExact(length: number): Promise<Buffer> {
-    while (this.remaining.length < length) {
-      const next = await this.reader?.next();
-      if (!next || next.done) throw new Error("Server disconnected");
-      this.remaining = Buffer.concat([this.remaining, next.value]);
-    }
-    const result = this.remaining.subarray(0, length);
-    this.remaining = this.remaining.subarray(length);
-    return result;
+    await request(connection, 'HELLO CONTROL')
+    return connection
+  } catch (error) {
+    socket.destroy()
+    throw error
   }
 }
 
-export class ServerCommandError extends Error {
-  constructor(command: string, code: string) {
-    super(`${command} failed: ${code}`);
+export function closeEmulator(connection: EmulatorConnection): void {
+  connection.socket.destroy()
+}
+
+export function createEmulatorCommand(
+  path: string,
+): (command: string) => Promise<Buffer> {
+  let connection: EmulatorConnection | undefined
+  return async (command) => {
+    if (!connection || connection.socket.destroyed)
+      connection = await connectEmulator(path)
+    try {
+      return await request(connection, command)
+    } catch (error) {
+      if (!isServerCommandError(error)) {
+        closeEmulator(connection)
+        connection = undefined
+      }
+      throw error
+    }
   }
 }
 
 export function parseTotalFrames(body: Buffer): number {
   const match = /^frames=(\d+) pressed_keys=(\d+) has_frame=(true|false)$/.exec(
-    body.toString("ascii"),
-  );
-  if (!match) throw new Error("Invalid STATUS response");
-  if (BigInt(match[2]!) !== 0n) throw new Error("STATUS reports pressed buttons");
-  const total = BigInt(match[1]!);
-  if (total > MAX_SAFE_FRAMES) throw new Error("STATUS frames exceeds safe integer range");
-  return Number(total);
+    body.toString('ascii'),
+  )
+  if (!match) throw new Error('Invalid STATUS response')
+  if (BigInt(match[2]!) !== 0n)
+    throw new Error('STATUS reports pressed buttons')
+  const total = BigInt(match[1]!)
+  if (total > MAX_SAFE_FRAMES)
+    throw new Error('STATUS frames exceeds safe integer range')
+  return Number(total)
 }

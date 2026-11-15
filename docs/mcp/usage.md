@@ -18,8 +18,10 @@ pnpm run build
 
 ## 実行
 
+`MGBA_MCP_SOCKET_PATH`に、起動済みの`mgba_server`が使用するUnix domain socketのパスを指定します。未設定または空文字の場合、起動に失敗します。
+
 ```sh
-pnpm start
+MGBA_MCP_SOCKET_PATH=/private/tmp/mgba.sock pnpm start
 ```
 
 MCPクライアントから起動する場合は、コマンドを `node`、引数をビルド後の `mgba_mcp/dist/index.js` の絶対パスに設定してください。標準入出力で通信します。
