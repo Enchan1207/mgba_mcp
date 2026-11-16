@@ -18,7 +18,7 @@ export default defineConfig({
     typeAware: true,
     typeCheck: true,
   },
-  plugins: ['eslint', 'typescript', 'unicorn', 'oxc', 'import'],
+  plugins: ['eslint', 'typescript', 'unicorn', 'oxc', 'import', 'vitest'],
   jsPlugins: [
     {
       name: 'simple-import-sort',
@@ -130,6 +130,9 @@ export default defineConfig({
 
     // 機械的にundefinedリテラルを消去すべきではない
     'unicorn/no-useless-undefined': 'off',
+
+    // 今回は特に禁止しない
+    'no-console': 'off',
   },
   overrides: [
     {
@@ -147,6 +150,42 @@ export default defineConfig({
 
         'no-console': 'off',
         'vitest/require-hook': 'off',
+      },
+    },
+    {
+      files: ['**/*.test.ts'],
+      rules: {
+        // 1test-1expect強制
+        'vitest/max-expects': [
+          'error',
+          {
+            max: 1,
+          },
+        ],
+
+        // 常にtest()を使う
+        'vitest/consistent-test-it': [
+          'error',
+          {
+            fn: 'test',
+            withinDescribe: 'test',
+          },
+        ],
+
+        'vitest/require-test-timeout': 'off',
+        'vitest/no-hooks': 'off',
+
+        // .toBe(boolean) を使う
+        'vitest/prefer-strict-boolean-matchers': 'error',
+        'vitest/prefer-to-be-truthy': 'off',
+        'vitest/prefer-to-be-falsy': 'off',
+
+        // .toHaveBeenCalledTimes(n) を使う
+        'vitest/prefer-called-once': 'off',
+        'vitest/prefer-called-times': 'error',
+
+        // テストケースは長くなってもよい
+        'max-lines-per-function': 'off',
       },
     },
   ],

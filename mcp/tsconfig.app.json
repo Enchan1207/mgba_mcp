@@ -16,6 +16,5 @@
       "src/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.integration.test.ts"]
+  "include": ["src/**/*.ts"]
 }
