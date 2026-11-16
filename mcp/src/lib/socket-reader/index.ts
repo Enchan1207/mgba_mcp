@@ -8,7 +8,11 @@ import { ServerDisconnectedError } from './errors'
 export class SocketReader {
   private remaining = Buffer.alloc(0)
 
-  constructor(private readonly source: AsyncIterator<Buffer>) {}
+  private readonly source: AsyncIterator<Buffer>
+
+  public constructor(source: AsyncIterator<Buffer>) {
+    this.source = source
+  }
 
   /**
    * 指定したバイト数を読み取る
@@ -17,11 +21,12 @@ export class SocketReader {
    * @returns 指定した長さのバイト列
    * @throws {ServerDisconnectedError} 指定したバイト数を読み取る前に接続が切断された場合
    */
-  async readExactly(length: number): Promise<Buffer> {
+  public async readExactly(length: number): Promise<Buffer> {
     while (this.remaining.length < length) {
+      // oxlint-disable-next-line no-await-in-loop
       const next = await this.source.next()
 
-      if (next.done) {
+      if (next.done === true) {
         throw new ServerDisconnectedError('接続が切断されました')
       }
 

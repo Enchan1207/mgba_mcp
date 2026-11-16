@@ -1,9 +1,14 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { createServer, type Server, type Socket } from 'node:net'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { mkdtemp, rm } from 'node:fs/promises'
+import type { Server, Socket } from 'node:net'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { match } from 'ts-pattern'
+import { afterAll, assert, beforeAll, describe, expect, test } from 'vitest'
 
 const entrypoint = fileURLToPath(
   new URL('../../../handler.ts', import.meta.url),
@@ -26,29 +31,30 @@ describe('press_button', () => {
   let commandsAfterFailure: string[]
 
   beforeAll(async () => {
-    directory = await mkdtemp(join(tmpdir(), 'mgba-mcp-'))
-    const socketPath = join(directory, 'control.sock')
+    directory = await mkdtemp(path.join(tmpdir(), 'mgba-mcp-'))
+    const socketPath = path.join(directory, 'CONTROL.sock')
     socketServer = createServer((socket) => {
       sockets.add(socket)
-      socket.on('close', () => sockets.delete(socket))
+      socket.on('close', () => {
+        sockets.delete(socket)
+      })
       let input = ''
       socket.setEncoding('ascii')
       socket.on('data', (chunk: string) => {
         input += chunk
         for (;;) {
           const newline = input.indexOf('\n')
-          if (newline < 0) break
+          if (newline === -1) {
+            break
+          }
           const command = input.slice(0, newline)
           input = input.slice(newline + 1)
           commands.push(command)
-          const body = Buffer.from(
-            command === 'STATUS'
-              ? 'frames=20 pressed_keys=0 has_frame=true'
-              : command === 'TYPE B 5'
-                ? 'BAD_REQUEST'
-                : '',
-            'ascii',
-          )
+          const response = match(command)
+            .with('STATUS', () => 'frames=20 pressed_keys=0 has_frame=true')
+            .with('TYPE B 5', () => 'BAD_REQUEST')
+            .otherwise(() => '')
+          const body = Buffer.from(response, 'ascii')
           const header = Buffer.alloc(5)
           header[0] = command === 'TYPE B 5' ? 0x45 : 0x53
           header.writeUInt32LE(body.length, 1)
@@ -57,9 +63,9 @@ describe('press_button', () => {
       })
     })
     await new Promise<void>((resolve, reject) => {
-      socketServer!.once('error', reject)
-      socketServer!.listen(socketPath, () => {
-        socketServer!.off('error', reject)
+      socketServer?.once('error', reject)
+      socketServer?.listen(socketPath, () => {
+        socketServer?.off('error', reject)
         resolve()
       })
     })
@@ -75,10 +81,14 @@ describe('press_button', () => {
       output += chunk
       for (;;) {
         const newline = output.indexOf('\n')
-        if (newline < 0) break
+        if (newline === -1) {
+          break
+        }
         const message = JSON.parse(output.slice(0, newline)) as { id?: number }
         output = output.slice(newline + 1)
-        if (message.id !== undefined) pending.get(message.id)?.(message)
+        if (message.id !== undefined) {
+          pending.get(message.id)?.(message)
+        }
       }
     })
     const request = (
@@ -86,8 +96,10 @@ describe('press_button', () => {
       method: string,
       params: unknown,
     ): Promise<unknown> => {
-      const result = new Promise<unknown>((resolve) => pending.set(id, resolve))
-      child!.stdin.write(
+      const result = new Promise<unknown>((resolve) => {
+        pending.set(id, resolve)
+      })
+      child?.stdin.write(
         `${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`,
       )
       return result
@@ -135,11 +147,18 @@ describe('press_button', () => {
 
   afterAll(async () => {
     child?.kill()
-    for (const socket of sockets) socket.destroy()
-    if (socketServer?.listening) {
-      await new Promise<void>((resolve) => socketServer!.close(() => resolve()))
+    for (const socket of sockets) {
+      socket.destroy()
     }
-    if (directory) await rm(directory, { recursive: true, force: true })
+    assert(socketServer !== undefined)
+
+    if (socketServer.listening) {
+      socketServer.close()
+    }
+
+    if (directory !== undefined) {
+      await rm(directory, { recursive: true, force: true })
+    }
   })
 
   describe('入力が不正な場合', () => {
@@ -160,7 +179,7 @@ describe('press_button', () => {
     })
 
     test('CONTROL コマンドを送らない', () => {
-      expect(commandsAfterValidation).toEqual([])
+      expect(commandsAfterValidation).toStrictEqual([])
     })
   })
 
@@ -172,7 +191,7 @@ describe('press_button', () => {
     })
 
     test('ボタンを押して解放する', () => {
-      expect(commandsAfterSuccess).toEqual([
+      expect(commandsAfterSuccess).toStrictEqual([
         'HELLO CONTROL',
         'RELEASE ALL',
         'TYPE A 10',
@@ -187,7 +206,7 @@ describe('press_button', () => {
     })
 
     test('ボタンを解放する', () => {
-      expect(commandsAfterFailure.slice(4)).toEqual([
+      expect(commandsAfterFailure.slice(4)).toStrictEqual([
         'RELEASE ALL',
         'TYPE B 5',
         'RELEASE ALL',

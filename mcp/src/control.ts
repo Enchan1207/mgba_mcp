@@ -1,10 +1,16 @@
-import { createConnection, type Socket } from 'node:net'
+import type { Socket } from 'node:net'
+import { createConnection } from 'node:net'
+
 import { SocketReader } from './lib/socket-reader/index'
 
 const MAX_BODY_LENGTH = 1024 * 1024
 const MAX_SAFE_FRAMES = BigInt(Number.MAX_SAFE_INTEGER)
 const DEFAULT_CONNECT_TIMEOUT_MS = 5000
 const DEFAULT_RESPONSE_TIMEOUT_MS = 30000
+const DEFAULT_TIMEOUTS = {
+  connectTimeoutMs: DEFAULT_CONNECT_TIMEOUT_MS,
+  responseTimeoutMs: DEFAULT_RESPONSE_TIMEOUT_MS,
+}
 
 type Timeouts = { connectTimeoutMs: number; responseTimeoutMs: number }
 
@@ -12,8 +18,9 @@ type EmulatorConnection = { socket: Socket; reader: SocketReader }
 
 const parseResponseHeader = (header: Buffer) => {
   const length = header.readUInt32LE(1)
-  if ((header[0] !== 0x53 && header[0] !== 0x45) || length > MAX_BODY_LENGTH)
+  if ((header[0] !== 0x53 && header[0] !== 0x45) || length > MAX_BODY_LENGTH) {
     throw new Error('Invalid server response header')
+  }
   return { success: header[0] === 0x53, length }
 }
 
@@ -31,22 +38,28 @@ const exchange = async (
   responseTimeoutMs: number,
 ): Promise<Buffer> => {
   const { socket, reader } = connection
-  const timer = setTimeout(
-    () => socket.destroy(new Error(`${command} response timed out`)),
-    responseTimeoutMs,
-  )
+  const timer = setTimeout(() => {
+    socket.destroy(new Error(`${command} response timed out`))
+  }, responseTimeoutMs)
   try {
     await new Promise<void>((resolve, reject) => {
       socket.write(`${command}\n`, (error?: Error | null) => {
-        if (error) reject(error)
-        else resolve()
+        if (error) {
+          reject(error)
+        } else {
+          resolve()
+        }
       })
     })
     const { success, length } = parseResponseHeader(await reader.readExactly(5))
     const body = await reader.readExactly(length)
-    if ((await reader.readExactly(1))[0] !== 0x0a)
+    const terminator = await reader.readExactly(1)
+    if (terminator[0] !== 10) {
       throw new Error('Invalid server response terminator')
-    if (!success) throw serverCommandError(command, body.toString('ascii'))
+    }
+    if (!success) {
+      throw serverCommandError(command, body.toString('ascii'))
+    }
     return body
   } finally {
     clearTimeout(timer)
@@ -60,8 +73,9 @@ const connectEmulator = async (
 ): Promise<EmulatorConnection> => {
   const socket = createConnection({ path })
   socket.on('error', () => undefined)
-  const onAbort = () =>
+  const onAbort = () => {
     socket.destroy(new Error('CONTROL connection is closed'))
+  }
   signal.addEventListener('abort', onAbort, { once: true })
   try {
     await new Promise<void>((resolve, reject) => {
@@ -93,13 +107,10 @@ const connectEmulator = async (
 
 export const createControlConnection = (
   path: string,
-  timeouts: Timeouts = {
-    connectTimeoutMs: DEFAULT_CONNECT_TIMEOUT_MS,
-    responseTimeoutMs: DEFAULT_RESPONSE_TIMEOUT_MS,
-  },
+  timeouts: Timeouts = DEFAULT_TIMEOUTS,
 ) => {
-  let connection: EmulatorConnection | undefined
-  let pendingConnection: Promise<EmulatorConnection> | undefined
+  let connection: EmulatorConnection | undefined = undefined
+  let pendingConnection: Promise<EmulatorConnection> | undefined = undefined
   let active = false
   let failed = false
   let cleanupAllowed = false
@@ -114,7 +125,9 @@ export const createControlConnection = (
   }
 
   const getConnection = async (): Promise<EmulatorConnection> => {
-    if (connection && !connection.socket.destroyed) return connection
+    if (connection && !connection.socket.destroyed) {
+      return connection
+    }
     pendingConnection ??= connectEmulator(path, timeouts, abort.signal)
     try {
       const connected = await pendingConnection
@@ -131,7 +144,9 @@ export const createControlConnection = (
 
   return {
     beginOperation: () => {
-      if (closed || active) throw new Error('CONTROL operation cannot start')
+      if (closed || active) {
+        throw new Error('CONTROL operation cannot start')
+      }
       active = true
       operationId += 1
       failed = false
@@ -143,37 +158,38 @@ export const createControlConnection = (
       cleanupAllowed = false
     },
     command: (command: string): Promise<Buffer> => {
-      if (closed || !active)
+      if (closed || !active) {
         return Promise.reject(new Error('CONTROL operation is unavailable'))
+      }
       const requestOperationId = operationId
       const result = previousCommand.then(async () => {
-        if (closed || !active || requestOperationId !== operationId)
+        if (closed || !active || requestOperationId !== operationId) {
           throw new Error('CONTROL operation is unavailable')
-        if (failed && (!cleanupAllowed || command !== 'RELEASE ALL'))
+        }
+        if (failed && (!cleanupAllowed || command !== 'RELEASE ALL')) {
           throw new Error('CONTROL operation has already failed')
-        let connected: EmulatorConnection
-        try {
-          connected = await getConnection()
-        } catch (error) {
+        }
+        const connected = await getConnection().catch((error: unknown) => {
           failed = true
           cleanupAllowed = false
           discard()
           throw error
-        }
+        })
         try {
           const body = await exchange(
             connected,
             command,
             timeouts.responseTimeoutMs,
           )
-          if (failed) cleanupAllowed = false
+          if (failed) {
+            cleanupAllowed = false
+          }
           return body
         } catch (error) {
+          failed = true
           if (isServerCommandError(error)) {
-            failed = true
             cleanupAllowed = command !== 'RELEASE ALL'
           } else {
-            failed = true
             cleanupAllowed = false
             discard()
           }
@@ -195,14 +211,21 @@ export const createControlConnection = (
 }
 
 export const parseTotalFrames = (body: Buffer): number => {
-  const match = /^frames=(\d+) pressed_keys=(\d+) has_frame=(true|false)$/.exec(
-    body.toString('ascii'),
-  )
-  if (!match) throw new Error('Invalid STATUS response')
-  if (BigInt(match[2]!) !== 0n)
+  const match =
+    /^frames=(?<frames>\d+) pressed_keys=(?<pressedKeys>\d+) has_frame=(?:true|false)$/u.exec(
+      body.toString('ascii'),
+    )
+  const frames = match?.groups?.['frames']
+  const pressedKeys = match?.groups?.['pressedKeys']
+  if (frames === undefined || pressedKeys === undefined) {
+    throw new Error('Invalid STATUS response')
+  }
+  if (BigInt(pressedKeys) !== 0n) {
     throw new Error('STATUS reports pressed buttons')
-  const total = BigInt(match[1]!)
-  if (total > MAX_SAFE_FRAMES)
+  }
+  const total = BigInt(frames)
+  if (total > MAX_SAFE_FRAMES) {
     throw new Error('STATUS frames exceeds safe integer range')
+  }
   return Number(total)
 }

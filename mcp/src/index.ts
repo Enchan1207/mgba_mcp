@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/server'
+
 import { createPressButtonTool } from './features/tools/press-button/index'
 import type { ToolConnection } from './lib/tool/index'
 

@@ -1,4 +1,7 @@
 import { Readable } from 'node:stream'
+
+import { beforeAll, describe, expect, test } from 'vitest'
+
 import { parseTotalFrames } from './control'
 import { SocketReader } from './lib/socket-reader/index'
 
@@ -23,14 +26,14 @@ describe('SocketReader', () => {
   })
 
   test('分割された受信バイトを指定長で返す', () => {
-    expect(first).toEqual(Buffer.from([1, 2, 3]))
+    expect(first).toStrictEqual(Buffer.from([1, 2, 3]))
   })
 
   test('余剰バイトを次の読み取りに持ち越す', () => {
-    expect(second).toEqual(Buffer.from([4, 5]))
+    expect(second).toStrictEqual(Buffer.from([4, 5]))
   })
 
-  test('EOFを通知する', () => {
+  test('eOFを通知する', () => {
     expect(disconnected).toBe(true)
   })
 })
@@ -45,6 +48,6 @@ describe('parseTotalFrames', () => {
   test('ボタンが押されたままの状態を拒否する', () => {
     expect(() =>
       parseTotalFrames(Buffer.from('frames=42 pressed_keys=1 has_frame=true')),
-    ).toThrow()
+    ).throws()
   })
 })

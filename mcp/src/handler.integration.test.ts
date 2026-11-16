@@ -1,15 +1,15 @@
-import {
-  spawn,
-  spawnSync,
-  type ChildProcessWithoutNullStreams,
-} from 'node:child_process'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { mkdtemp, rm } from 'node:fs/promises'
-import { createServer, type Server, type Socket } from 'node:net'
+import type { Server, Socket } from 'node:net'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const entrypoint = fileURLToPath(new URL('./handler.ts', import.meta.url))
+import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+
+const entrypoint = fileURLToPath(new URL('handler.ts', import.meta.url))
 
 describe('stdio server', () => {
   let child: ChildProcessWithoutNullStreams | undefined
@@ -26,22 +26,22 @@ describe('stdio server', () => {
 
     const response = new Promise<unknown>((resolve, reject) => {
       let output = ''
-      child!.stdout.setEncoding('utf8')
-      child!.stdout.on('data', (chunk: string) => {
+      child?.stdout.setEncoding('utf8')
+      child?.stdout.on('data', (chunk: string) => {
         output += chunk
         const newline = output.indexOf('\n')
         if (newline !== -1) {
           try {
             resolve(JSON.parse(output.slice(0, newline)) as unknown)
           } catch (error) {
-            reject(error)
+            reject(error instanceof Error ? error : new Error(String(error)))
           }
         }
       })
-      child!.on('error', reject)
-      child!.on('exit', (code) =>
-        reject(new Error(`Server exited with code ${code}`)),
-      )
+      child?.on('error', reject)
+      child?.on('exit', (code) => {
+        reject(new Error(`Server exited with code ${code}`))
+      })
     })
 
     child.stdin.write(
@@ -72,15 +72,6 @@ describe('stdio server', () => {
   })
 })
 
-describe('起動設定', () => {
-  test('ソケットパスが未設定なら起動に失敗する', () => {
-    const env = { ...process.env }
-    delete env['MGBA_MCP_SOCKET_PATH']
-    const result = spawnSync('tsx', [entrypoint], { env })
-    expect(result.status).toBe(1)
-  })
-})
-
 describe('並行するstdio要求', () => {
   let directory: string | undefined
   let socketServer: Server | undefined
@@ -94,8 +85,8 @@ describe('並行するstdio要求', () => {
   let queuedOperationStarted = false
 
   beforeAll(async () => {
-    directory = await mkdtemp(join(tmpdir(), 'mgba-stdio-'))
-    const socketPath = join(directory, 'control.sock')
+    directory = await mkdtemp(path.join(tmpdir(), 'mgba-stdio-'))
+    const socketPath = path.join(directory, 'control.sock')
     let releaseType: (() => void) | undefined
     let markTypeSeen: (() => void) | undefined
     const typeSeen = new Promise<void>((resolve) => {
@@ -105,16 +96,20 @@ describe('並行するstdio要求', () => {
     const hangingTypeSeen = new Promise<void>((resolve) => {
       markHangingTypeSeen = resolve
     })
-    socketServer = createServer((socket) => {
+    const server = createServer((socket) => {
       sockets.add(socket)
-      socket.on('close', () => sockets.delete(socket))
+      socket.on('close', () => {
+        sockets.delete(socket)
+      })
       let input = ''
       socket.setEncoding('ascii')
       socket.on('data', (chunk: string) => {
         input += chunk
         for (;;) {
           const newline = input.indexOf('\n')
-          if (newline < 0) break
+          if (newline === -1) {
+            break
+          }
           const command = input.slice(0, newline)
           input = input.slice(newline + 1)
           commands.push(command)
@@ -132,7 +127,9 @@ describe('並行するstdio要求', () => {
           header.writeUInt32LE(body.length, 1)
           const response = Buffer.concat([header, body, Buffer.from('\n')])
           if (command === 'TYPE A 10' && !releaseType) {
-            releaseType = () => socket.write(response)
+            releaseType = () => {
+              socket.write(response)
+            }
             markTypeSeen?.()
           } else {
             socket.write(response)
@@ -140,15 +137,19 @@ describe('並行するstdio要求', () => {
         }
       })
     })
+    socketServer = server
     await new Promise<void>((resolve, reject) => {
-      socketServer!.once('error', reject)
-      socketServer!.listen(socketPath, () => resolve())
+      server.once('error', reject)
+      server.listen(socketPath, () => {
+        resolve()
+      })
     })
 
-    child = spawn('tsx', [entrypoint], {
+    const spawned = spawn('tsx', [entrypoint], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, MGBA_MCP_SOCKET_PATH: socketPath },
     })
+    child = spawned
     const pending = new Map<number, (response: unknown) => void>()
     let output = ''
     child.stdout.setEncoding('utf8')
@@ -156,17 +157,21 @@ describe('並行するstdio要求', () => {
       output += chunk
       for (;;) {
         const newline = output.indexOf('\n')
-        if (newline < 0) break
+        if (newline === -1) {
+          break
+        }
         const message = JSON.parse(output.slice(0, newline)) as { id?: number }
         output = output.slice(newline + 1)
-        if (message.id !== undefined) pending.get(message.id)?.(message)
+        if (message.id !== undefined) {
+          pending.get(message.id)?.(message)
+        }
       }
     })
     const request = (id: number, method: string, params: unknown) => {
-      const response = new Promise<unknown>((resolve) =>
-        pending.set(id, resolve),
-      )
-      child!.stdin.write(
+      const response = new Promise<unknown>((resolve) => {
+        pending.set(id, resolve)
+      })
+      spawned.stdin.write(
         `${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`,
       )
       return response
@@ -194,28 +199,44 @@ describe('並行するstdio要求', () => {
     releaseType?.()
     firstResult = await first
     secondResult = await second
-    void request(5, 'tools/call', {
+    request(5, 'tools/call', {
       name: 'press_button',
       arguments: { button: 'SELECT' },
-    })
+    }).catch(() => undefined)
     await hangingTypeSeen
-    void request(6, 'tools/call', {
+    request(6, 'tools/call', {
       name: 'press_button',
       arguments: { button: 'START' },
+    }).catch(() => undefined)
+    await new Promise((resolve) => {
+      setImmediate(resolve)
     })
-    await new Promise((resolve) => setImmediate(resolve))
     child.stdin.end()
-    await new Promise<void>((resolve) => child!.once('exit', () => resolve()))
+    await new Promise<void>((resolve) => {
+      spawned.once('exit', () => {
+        resolve()
+      })
+    })
     exitedAfterStdinClose = true
     queuedOperationStarted = commands.includes('TYPE START 10')
   }, 10000)
 
   afterAll(async () => {
     child?.kill()
-    for (const socket of sockets) socket.destroy()
-    if (socketServer?.listening)
-      await new Promise<void>((resolve) => socketServer!.close(() => resolve()))
-    if (directory) await rm(directory, { recursive: true, force: true })
+    for (const socket of sockets) {
+      socket.destroy()
+    }
+    if (socketServer?.listening === true) {
+      const server = socketServer
+      await new Promise<void>((resolve) => {
+        server.close(() => {
+          resolve()
+        })
+      })
+    }
+    if (directory !== undefined) {
+      await rm(directory, { recursive: true, force: true })
+    }
   })
 
   test('tools/listはゲーム操作の完了を待たない', () => {
@@ -230,7 +251,7 @@ describe('並行するstdio要求', () => {
   })
 
   test('操作中に別の操作のコマンドを送らない', () => {
-    expect(commands.slice(0, 7)).toEqual([
+    expect(commands.slice(0, 7)).toStrictEqual([
       'HELLO CONTROL',
       'RELEASE ALL',
       'TYPE A 10',

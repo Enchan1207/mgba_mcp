@@ -5,7 +5,9 @@ export const createOperationQueue = () => {
   return {
     run: <T>(operation: () => Promise<T>): Promise<T> => {
       const result = previous.then(() => {
-        if (closed) throw new Error('Operation queue is closed')
+        if (closed) {
+          throw new Error('Operation queue is closed')
+        }
         return operation()
       })
       previous = result.then(

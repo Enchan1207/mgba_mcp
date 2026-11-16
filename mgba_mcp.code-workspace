@@ -20,6 +20,9 @@
   "settings": {
     "swift.autoGenerateLaunchConfigurations": false,
     "cmake.sourceDirectory": "${workspaceFolder}/mgba_server",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.oxc": "explicit",
+    },
     "oxc.configPath": "./mcp/oxlint.config.ts",
     "oxc.path.oxlint": "../mcp/node_modules/.bin/oxlint",
     "oxc.path.tsgolint": "../mcp/node_modules/.bin/tsgolint",

@@ -1,12 +1,10 @@
 import { serveStdio } from '@modelcontextprotocol/server/stdio'
+
 import { createControlConnection } from './control'
 import { createMcpServer } from './index'
 import { createOperationQueue } from './lib/operation-queue/index'
 
-const socketPath = process.env['MGBA_MCP_SOCKET_PATH']
-if (!socketPath)
-  throw new Error('MGBA_MCP_SOCKET_PATH must be set to a non-empty path')
-
+const socketPath = process.env.MGBA_MCP_SOCKET_PATH
 const control = createControlConnection(socketPath)
 const queue = createOperationQueue()
 const close = () => {

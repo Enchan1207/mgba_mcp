@@ -1,6 +1,8 @@
 import { z } from 'zod'
+
 import { parseTotalFrames } from '../../../control'
-import { defineTool, type Command } from '../../../lib/tool/index'
+import type { Command } from '../../../lib/tool/index'
+import { defineTool } from '../../../lib/tool/index'
 
 const inputSchema = z.object({
   button: z.enum(['A', 'B', 'SELECT', 'START', 'RIGHT', 'LEFT', 'UP', 'DOWN']),

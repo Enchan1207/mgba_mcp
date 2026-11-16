@@ -172,7 +172,10 @@ export default defineConfig({
           },
         ],
 
+        // タイムアウトはなくてもよい
         'vitest/require-test-timeout': 'off',
+
+        // hookを使いたい
         'vitest/no-hooks': 'off',
 
         // .toBe(boolean) を使う
@@ -186,6 +189,21 @@ export default defineConfig({
 
         // テストケースは長くなってもよい
         'max-lines-per-function': 'off',
+
+        // アサーションは必須ではない
+        'vitest/prefer-expect-assertions': 'off',
+
+        // 別にテストケースの頭文字は小文字でいい
+        'vitest/prefer-lowercase-title': 'off',
+
+        // vitestの提供する値をimportする
+        'vitest/no-importing-vitest-globals': 'off',
+
+        // フックで後から初期化したいケースが多い
+        'init-declarations': 'off',
+
+        // テストケース名をlintで縛る理由はない
+        'vitest/prefer-describe-function-title': 'off',
       },
     },
   ],

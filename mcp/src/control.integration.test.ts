@@ -1,10 +1,15 @@
-import { createServer, type Server, type Socket } from 'node:net'
 import { mkdtemp, rm } from 'node:fs/promises'
+import type { Server, Socket } from 'node:net'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import path from 'node:path'
+
+import { match } from 'ts-pattern'
+import { afterAll, assert, beforeAll, describe, expect, test } from 'vitest'
+
 import { createControlConnection } from './control'
 
-describe('CONTROL接続', () => {
+describe('cONTROL接続', () => {
   let directory: string | undefined
   let server: Server | undefined
   const sockets = new Set<Socket>()
@@ -22,33 +27,37 @@ describe('CONTROL接続', () => {
   let closedWait = false
 
   beforeAll(async () => {
-    directory = await mkdtemp(join(tmpdir(), 'mgba-control-'))
-    const socketPath = join(directory, 'control.sock')
+    directory = await mkdtemp(path.join(tmpdir(), 'mgba-control-'))
+    const socketPath = path.join(directory, 'control.sock')
     server = createServer((socket) => {
       connectionCount += 1
       sockets.add(socket)
-      socket.on('close', () => sockets.delete(socket))
+      socket.on('close', () => {
+        sockets.delete(socket)
+      })
       let input = ''
       socket.setEncoding('ascii')
       socket.on('data', (chunk: string) => {
         input += chunk
         for (;;) {
           const newline = input.indexOf('\n')
-          if (newline < 0) break
+          if (newline === -1) {
+            break
+          }
           const command = input.slice(0, newline)
           input = input.slice(newline + 1)
           commands.push(command)
-          if (command === 'HANG') continue
+          if (command === 'HANG') {
+            continue
+          }
           if (command === 'DROP') {
             socket.destroy()
             continue
           }
-          const body =
-            command === 'CAPTURE'
-              ? Buffer.from([1, 10, 2])
-              : command === 'ERROR'
-                ? Buffer.from('BAD_REQUEST')
-                : Buffer.alloc(0)
+          const body = match(command)
+            .with('CAPTURE', () => Buffer.from([1, 10, 2]))
+            .with('ERROR', () => Buffer.from('BAD_REQUEST'))
+            .otherwise(() => Buffer.alloc(0))
           const header = Buffer.alloc(5)
           header[0] = command === 'ERROR' ? 0x45 : 0x53
           header.writeUInt32LE(body.length, 1)
@@ -59,7 +68,9 @@ describe('CONTROL接続', () => {
           ])
           if (command === 'CAPTURE') {
             socket.write(response.subarray(0, 2))
-            setImmediate(() => socket.write(response.subarray(2)))
+            setImmediate(() => {
+              socket.write(response.subarray(2))
+            })
           } else {
             socket.write(response)
           }
@@ -67,8 +78,10 @@ describe('CONTROL接続', () => {
       })
     })
     await new Promise<void>((resolve, reject) => {
-      server!.once('error', reject)
-      server!.listen(socketPath, () => resolve())
+      server?.once('error', reject)
+      server?.listen(socketPath, () => {
+        resolve()
+      })
     })
 
     const control = createControlConnection(socketPath, {
@@ -131,7 +144,9 @@ describe('CONTROL接続', () => {
 
     control.beginOperation()
     const waiting = control.command('HANG')
-    await new Promise((resolve) => setImmediate(resolve))
+    await new Promise((resolve) => {
+      setImmediate(resolve)
+    })
     control.close()
     try {
       await waiting
@@ -142,14 +157,23 @@ describe('CONTROL接続', () => {
   }, 10000)
 
   afterAll(async () => {
-    for (const socket of sockets) socket.destroy()
-    if (server?.listening)
-      await new Promise<void>((resolve) => server!.close(() => resolve()))
-    if (directory) await rm(directory, { recursive: true, force: true })
+    for (const socket of sockets) {
+      socket.destroy()
+    }
+    assert(server !== undefined)
+
+    if (server.listening) {
+      server.close()
+    }
+
+    assert(directory !== undefined)
+    if (directory) {
+      await rm(directory, { recursive: true, force: true })
+    }
   })
 
   test('分割受信した画像本文中の改行を終端と扱わない', () => {
-    expect(capture).toEqual(Buffer.from([1, 10, 2]))
+    expect(capture).toStrictEqual(Buffer.from([1, 10, 2]))
   })
 
   test('コマンドのエラー応答を通知する', () => {
@@ -189,7 +213,7 @@ describe('CONTROL接続', () => {
   })
 
   test('要求と解放を順に送る', () => {
-    expect(commands.slice(0, 4)).toEqual([
+    expect(commands.slice(0, 4)).toStrictEqual([
       'HELLO CONTROL',
       'CAPTURE',
       'ERROR',
