@@ -133,6 +133,9 @@ export default defineConfig({
 
     // 今回は特に禁止しない
     'no-console': 'off',
+
+    // 数値リテラルは好きに書きたい
+    'unicorn/number-literal-case': 'off',
   },
   overrides: [
     {
