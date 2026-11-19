@@ -14,6 +14,7 @@
   "dependencies": {
     "@modelcontextprotocol/server": "^2.4.0",
     "@praha/byethrow": "^0.13.0",
+    "sharp": "^0.35.5",
     "ts-pattern": "^5.9.2",
     "zod": "^4.4.3"
   },
