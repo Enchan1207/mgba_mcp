@@ -30,11 +30,12 @@ export const createMgbaClient = (socket: Socket) => {
       Result.andThen(parseCommand),
       Result.andThen(Result.fn({ try: write(socket), safe: true })),
       Result.andThen(readResponse),
-      Result.map((responseRaw): MgbaResponseTypeFor<Command['verb']> =>
-        parseSucceededResponse<Command['verb']>({
-          verb: command.verb,
-          responseRaw,
-        }),
+      Result.map(
+        (responseRaw): MgbaResponseTypeFor<Command['verb']> =>
+          parseSucceededResponse<Command['verb']>({
+            verb: command.verb,
+            responseRaw,
+          }),
       ),
     )
 
