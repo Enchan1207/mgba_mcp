@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b",
-    "start": "tsx src/handler.ts",
+    "start": "tsx src/index.ts",
     "test": "vitest",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
