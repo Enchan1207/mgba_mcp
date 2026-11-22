@@ -76,11 +76,7 @@ export class McpTool<Env extends ToolEnv = ToolEnv> {
   /**
    * ツールを登録する
    * @param name ツール名
-   * @param title ツール表示名
-   * @param description ツール説明
-   * @param input 入力スキーマ
-   * @param output 出力スキーマ
-   * @param handler ツールハンドラ
+   * @param props ツール構成とハンドラ
    * @returns ツールの登録されたMcpToolインスタンス
    */
   public register<Input extends InputType, Output extends OutputType>(
