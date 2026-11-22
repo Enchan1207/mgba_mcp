@@ -25,18 +25,27 @@ describe('McpToolの登録とマウント', () => {
     title: '親ツール',
     description: '親の説明',
     input,
-    output,
-    handler: (c) => ({ result: c.get('prefix') + c.input.value }),
+    outputSchema: output,
+    handler: (c) => {
+      const result = { result: c.get('prefix') + c.input.value }
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result) }],
+        structuredContent: result,
+      }
+    },
   })
   const child = new McpTool().bind('suffix', ':子').register('child', {
     title: '子ツール',
     description: '子の説明',
     input,
-    output,
-    handler: (c) => ({
-      result: c.input.value + c.get('suffix'),
-      discarded: 'スキーマ外',
-    }),
+    outputSchema: output,
+    handler: (c) => {
+      const result = { result: c.input.value + c.get('suffix') }
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result) }],
+        structuredContent: { ...result, discarded: 'スキーマ外' },
+      }
+    },
   })
   let parentResult: CallToolResult | undefined
   let childResult: CallToolResult | undefined
@@ -97,8 +106,11 @@ describe('McpToolの出力検証', () => {
         title: '出力検証',
         description: '不正な出力を検証する',
         input: z.object({}),
-        output: z.object({ count: z.number().positive() }),
-        handler: () => ({ count: -1 }),
+        outputSchema: z.object({ count: z.number().positive() }),
+        handler: () => ({
+          content: [{ type: 'text', text: '不正な値' }],
+          structuredContent: { count: -1 },
+        }),
       })
       .mount(server)
     actual = await callback?.()
@@ -113,6 +125,101 @@ describe('McpToolの出力検証', () => {
 
   test('不正な出力を構造化結果に含めない', () => {
     expect(actual).not.toHaveProperty('structuredContent')
+  })
+})
+
+describe('McpToolの画像出力', () => {
+  test('画像とJSONを同じ結果に含める', async () => {
+    let callback: (() => Promise<CallToolResult>) | undefined
+    let config: unknown
+    const server = {
+      registerTool: (
+        _name: string,
+        toolConfig: unknown,
+        handler: () => Promise<CallToolResult>,
+      ) => {
+        config = toolConfig
+        callback = handler
+      },
+    } as unknown as McpServer
+    const input = z.object({})
+    const outputSchema = z.object({ totalFrames: z.number().int() })
+
+    new McpTool()
+      .register('get_screen', {
+        title: '画面を取得する',
+        description: '現在の画面を返す',
+        input,
+        outputSchema,
+        handler: () => ({
+          content: [
+            { type: 'text', text: '{"totalFrames":42}' },
+            { type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' },
+          ],
+          structuredContent: { totalFrames: 42, discarded: 'スキーマ外' },
+        }),
+      })
+      .mount(server)
+
+    const result = await callback?.()
+    expect({ config, result }).toStrictEqual({
+      config: {
+        title: '画面を取得する',
+        description: '現在の画面を返す',
+        inputSchema: input,
+        outputSchema,
+      },
+      result: {
+        content: [
+          { type: 'text', text: '{"totalFrames":42}' },
+          { type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' },
+        ],
+        structuredContent: { totalFrames: 42 },
+      },
+    })
+  })
+
+  test('画像だけを返すときは出力スキーマを登録しない', async () => {
+    let callback: (() => Promise<CallToolResult>) | undefined
+    let config: unknown
+    const server = {
+      registerTool: (
+        _name: string,
+        toolConfig: unknown,
+        handler: () => Promise<CallToolResult>,
+      ) => {
+        config = toolConfig
+        callback = handler
+      },
+    } as unknown as McpServer
+    const input = z.object({})
+
+    new McpTool()
+      .register('get_screen', {
+        title: '画面を取得する',
+        description: '現在の画面を返す',
+        input,
+        handler: () => ({
+          content: [
+            { type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' },
+          ],
+        }),
+      })
+      .mount(server)
+
+    const result = await callback?.()
+    expect({ config, result }).toStrictEqual({
+      config: {
+        title: '画面を取得する',
+        description: '現在の画面を返す',
+        inputSchema: input,
+      },
+      result: {
+        content: [
+          { type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' },
+        ],
+      },
+    })
   })
 })
 
@@ -135,7 +242,7 @@ describe('McpToolのハンドラエラー', () => {
         title: '失敗するツール',
         description: '実行時の失敗を検証する',
         input: z.object({}),
-        output: z.object({ result: z.string() }),
+        outputSchema: z.object({ result: z.string() }),
         handler: () => Promise.reject(new Error('実行に失敗しました')),
       })
       .mount(server)
@@ -156,15 +263,13 @@ describe('McpToolの重複検出', () => {
       title: '親ツール',
       description: '親の説明',
       input: z.object({}),
-      output: z.object({}),
-      handler: () => ({}),
+      handler: () => ({ content: [] }),
     })
     const child = new McpTool().register('duplicate', {
       title: '子ツール',
       description: '子の説明',
       input: z.object({}),
-      output: z.object({}),
-      handler: () => ({}),
+      handler: () => ({ content: [] }),
     })
 
     expect(() => parent.route(child)).toThrow(Error)
@@ -191,8 +296,14 @@ describe('McpToolのルートバインディング', () => {
         title: '子ツール',
         description: 'ルートのバインディングを使う',
         input: z.object({ value: z.string() }),
-        output: z.object({ result: z.string() }),
-        handler: (c) => ({ result: c.get('prefix') + c.input.value }),
+        outputSchema: z.object({ result: z.string() }),
+        handler: (c) => {
+          const result = { result: c.get('prefix') + c.input.value }
+          return {
+            content: [{ type: 'text', text: JSON.stringify(result) }],
+            structuredContent: result,
+          }
+        },
       },
     )
     new McpTool()

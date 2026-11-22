@@ -4,7 +4,23 @@ import type { z } from 'zod'
 // MARK: Definitions
 
 type InputType = z.ZodObject
-type OutputType = z.ZodObject
+type OutputSchemaType = z.ZodObject
+type Content =
+  | {
+      type: 'text'
+      text: string
+    }
+  | {
+      type: 'image'
+      data: string
+      mimeType: string
+    }
+
+type ToolResult<Output extends OutputSchemaType | undefined> = {
+  content: Content[]
+} & (Output extends OutputSchemaType
+  ? { structuredContent: z.output<Output> }
+  : { structuredContent?: Record<string, unknown> })
 
 /** ツール環境 */
 type ToolEnv = { Bindings: object }
@@ -16,24 +32,29 @@ type ToolContext<Input extends InputType, Env extends ToolEnv> = {
 }
 
 /** ツール構成 */
-type ToolConfig<Input extends InputType, Output extends OutputType> = {
+type ToolConfig<
+  Input extends InputType,
+  Output extends OutputSchemaType | undefined,
+> = {
   title: string
   description: string
   input: Input
-  output: Output
+  outputSchema?: Output
 }
 
 /** ツールハンドラ */
 type ToolHandler<
   Input extends InputType,
-  Output extends OutputType,
+  Output extends OutputSchemaType | undefined,
   Env extends ToolEnv,
-> = (c: ToolContext<Input, Env>) => z.infer<Output> | Promise<z.infer<Output>>
+> = (
+  c: ToolContext<Input, Env>,
+) => ToolResult<Output> | Promise<ToolResult<Output>>
 
 /** ツール定義 */
 type ToolDefinition<
   Input extends InputType,
-  Output extends OutputType,
+  Output extends OutputSchemaType | undefined,
   Env extends ToolEnv,
 > = ToolConfig<Input, Output> & {
   handler: ToolHandler<Input, Output, Env>
@@ -63,7 +84,7 @@ type WithBinding<Env extends ToolEnv, Key extends string, Value> = Omit<
 export class McpTool<Env extends ToolEnv = ToolEnv> {
   private readonly tools: Map<
     string,
-    ToolDefinition<InputType, OutputType, Env>
+    ToolDefinition<InputType, OutputSchemaType | undefined, Env>
   >
 
   private bindings: Record<string, unknown>
@@ -79,13 +100,12 @@ export class McpTool<Env extends ToolEnv = ToolEnv> {
    * @param props ツール構成とハンドラ
    * @returns ツールの登録されたMcpToolインスタンス
    */
-  public register<Input extends InputType, Output extends OutputType>(
+  public register<
+    Input extends InputType,
+    Output extends OutputSchemaType | undefined = undefined,
+  >(
     name: string,
-    props: {
-      title: string
-      description: string
-      input: Input
-      output: Output
+    props: ToolConfig<Input, Output> & {
       handler: ToolHandler<Input, Output, Env>
     },
   ) {
@@ -93,7 +113,7 @@ export class McpTool<Env extends ToolEnv = ToolEnv> {
       title: props.title,
       description: props.description,
       input: props.input,
-      output: props.output,
+      outputSchema: props.outputSchema,
       handler: props.handler,
     })
 
@@ -126,7 +146,11 @@ export class McpTool<Env extends ToolEnv = ToolEnv> {
 
     const combinedTools = this.tools as unknown as Map<
       string,
-      ToolDefinition<InputType, OutputType, MergeEnv<Env, ChildEnv>>
+      ToolDefinition<
+        InputType,
+        OutputSchemaType | undefined,
+        MergeEnv<Env, ChildEnv>
+      >
     >
 
     for (const [key, tool] of child.tools) {
@@ -138,7 +162,7 @@ export class McpTool<Env extends ToolEnv = ToolEnv> {
         key,
         tool as unknown as ToolDefinition<
           InputType,
-          OutputType,
+          OutputSchemaType | undefined,
           MergeEnv<Env, ChildEnv>
         >,
       )
@@ -155,7 +179,9 @@ export class McpTool<Env extends ToolEnv = ToolEnv> {
           title: definition.title,
           description: definition.description,
           inputSchema: definition.input,
-          outputSchema: definition.output,
+          ...(definition.outputSchema
+            ? { outputSchema: definition.outputSchema }
+            : {}),
         },
         async (input) => {
           const context: ToolContext<typeof definition.input, Env> = {
@@ -165,16 +191,13 @@ export class McpTool<Env extends ToolEnv = ToolEnv> {
 
           try {
             const result = await definition.handler(context)
-            const parsed = definition.output.parse(result)
+            const structuredContent = definition.outputSchema
+              ? definition.outputSchema.parse(result.structuredContent)
+              : result.structuredContent
 
             return {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify(parsed),
-                },
-              ],
-              structuredContent: parsed,
+              content: result.content,
+              ...(structuredContent === undefined ? {} : { structuredContent }),
             }
           } catch (error: unknown) {
             return {

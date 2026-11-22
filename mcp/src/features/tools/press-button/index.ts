@@ -20,7 +20,7 @@ const tool = new McpTool<{ Bindings: Bindings }>().register('press_button', {
       .transform((button) => button.toLowerCase() as Button),
     frames: z.number().int().min(1).max(18000).default(10),
   }),
-  output: z.object({
+  outputSchema: z.object({
     framesAdvanced: z.number().int(),
     totalFrames: z.number().int(),
   }),
@@ -36,7 +36,14 @@ const tool = new McpTool<{ Bindings: Bindings }>().register('press_button', {
           client.send({ verb: 'type', args: [button, frames] }),
         )
         const status = await Result.unwrap(client.send({ verb: 'status' }))
-        return { framesAdvanced: frames * 2, totalFrames: status.frames }
+        const result = {
+          framesAdvanced: frames * 2,
+          totalFrames: status.frames,
+        }
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result) }],
+          structuredContent: result,
+        }
       } catch (error) {
         try {
           await Result.unwrap(client.send({ verb: 'release', args: ['all'] }))
