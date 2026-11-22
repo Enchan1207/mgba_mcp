@@ -6,8 +6,8 @@ import type {
   MgbaServerCommand,
 } from 'src/external/mgba-client/command'
 import { CommandFailedError } from 'src/external/mgba-client/response/errors'
+import type { RunWithMgbaClient } from 'src/external/mgba-client/run-with-client'
 import { McpTool } from 'src/lib/mcp-tools'
-import { createExecutor } from 'src/lib/run-in-executor'
 import { beforeAll, describe, expect, test } from 'vitest'
 import type { z } from 'zod'
 
@@ -48,8 +48,8 @@ describe('walk_forの正常系', () => {
     } as unknown as McpServer
     new McpTool()
       .route(tool)
-      .bind('mgba-client', client)
-      .bind('run-in-executor', createExecutor())
+      .bind('run-with-mgba-client', ((task) =>
+        Promise.resolve().then(() => task(client))) satisfies RunWithMgbaClient)
       .mount(server)
     const input = inputSchema?.parse({ direction: 'UP', frames: 12 }) as {
       direction: Button
@@ -126,8 +126,8 @@ describe('walk_forの失敗時', () => {
     } as unknown as McpServer
     new McpTool()
       .route(tool)
-      .bind('mgba-client', client)
-      .bind('run-in-executor', createExecutor())
+      .bind('run-with-mgba-client', ((task) =>
+        Promise.resolve().then(() => task(client))) satisfies RunWithMgbaClient)
       .mount(server)
     actual = await callback?.({ direction: 'up', frames: 5 })
   })

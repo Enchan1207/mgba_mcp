@@ -3,8 +3,8 @@ import { Result } from '@praha/byethrow'
 import type { MgbaClient } from 'src/external/mgba-client'
 import type { MgbaServerCommand } from 'src/external/mgba-client/command'
 import { CommandFailedError } from 'src/external/mgba-client/response/errors'
+import type { RunWithMgbaClient } from 'src/external/mgba-client/run-with-client'
 import { McpTool } from 'src/lib/mcp-tools'
-import { createExecutor } from 'src/lib/run-in-executor'
 import { beforeAll, describe, expect, test } from 'vitest'
 
 import tool from '.'
@@ -37,8 +37,8 @@ describe('get_screenで画面がある場合', () => {
     } as unknown as McpServer
     new McpTool()
       .route(tool)
-      .bind('mgba-client', client)
-      .bind('run-in-executor', createExecutor())
+      .bind('run-with-mgba-client', ((task) =>
+        Promise.resolve().then(() => task(client))) satisfies RunWithMgbaClient)
       .mount(server)
     actual = await callback?.()
   })
@@ -105,8 +105,8 @@ describe('get_screenで画面がない場合', () => {
     } as unknown as McpServer
     new McpTool()
       .route(tool)
-      .bind('mgba-client', client)
-      .bind('run-in-executor', createExecutor())
+      .bind('run-with-mgba-client', ((task) =>
+        Promise.resolve().then(() => task(client))) satisfies RunWithMgbaClient)
       .mount(server)
     actual = await callback?.()
   })
@@ -157,8 +157,8 @@ describe('get_screenで再取得に失敗した場合', () => {
     } as unknown as McpServer
     new McpTool()
       .route(tool)
-      .bind('mgba-client', client)
-      .bind('run-in-executor', createExecutor())
+      .bind('run-with-mgba-client', ((task) =>
+        Promise.resolve().then(() => task(client))) satisfies RunWithMgbaClient)
       .mount(server)
     actual = await callback?.()
   })

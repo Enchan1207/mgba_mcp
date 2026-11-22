@@ -1,14 +1,12 @@
 import { Result } from '@praha/byethrow'
-import type { MgbaClient } from 'src/external/mgba-client'
 import type { Button } from 'src/external/mgba-client/command'
-import type { Executor } from 'src/lib/run-in-executor'
+import type { RunWithMgbaClient } from 'src/external/mgba-client/run-with-client'
 import { z } from 'zod'
 
 import { McpTool } from '../../../lib/mcp-tools'
 
 type Bindings = {
-  'mgba-client': MgbaClient
-  'run-in-executor': Executor
+  'run-with-mgba-client': RunWithMgbaClient
 }
 
 const ToolInputSchema = z.object({
@@ -29,12 +27,11 @@ const tool = new McpTool<{ Bindings: Bindings }>().register('walk_for', {
   input: ToolInputSchema,
   outputSchema: ToolOutputSchema,
   handler: (c) => {
-    const client = c.get('mgba-client')
-    const runInExecutor = c.get('run-in-executor')
+    const runWithMgbaClient = c.get('run-with-mgba-client')
     const releaseFrames = 10
     const { direction, frames } = c.input
 
-    return runInExecutor(async () => {
+    return runWithMgbaClient(async (client) => {
       try {
         const result = await Result.pipe(
           client.send({ verb: 'release', args: ['all'] }),
