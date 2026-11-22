@@ -28,7 +28,7 @@ cmake --build --preset target
 ./build/target/cli/mgba_server --rom /path/to/game.gb --socket /private/tmp/mgba.sock
 ```
 
-正常終了時はソケットファイルを削除します(指定したパスにファイルが既にある場合は起動せずに終了します)。
+サーバはSIGINTまたはSIGTERMで終了します。終了時にソケットファイルを削除します。指定したパスにファイルが既にある場合は起動せずに終了します。
 
 クライアントの接続手順は [接続方法](connection.md)、要求と応答の形式は [コマンド仕様](command_references.md) をそれぞれ参照してください。
 

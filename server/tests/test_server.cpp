@@ -158,14 +158,27 @@ TEST_F(ServerTest, ReadsRawMemoryAsBinary) {
     EXPECT_EQ(request(control, "READ FFFF 2").body, "BAD_REQUEST");
     close(view); close(control);
 }
-TEST_F(ServerTest, QuitWakesWaiterAndRemovesSocket) {
+TEST_F(ServerTest, QuitReleasesControlAndPreservesServer) {
+    int control = connect_as("CONTROL"); ASSERT_GE(control, 0);
+    ASSERT_EQ(request(control, "STEP 1").result, 'S');
+    EXPECT_EQ(request(control, "QUIT").result, 'S');
+    char remaining = 0;
+    EXPECT_EQ(recv(control, &remaining, 1, 0), 0);
+    close(control);
+
+    int next = connect_as("CONTROL"); ASSERT_GE(next, 0);
+    EXPECT_EQ(request(next, "STATUS").body, "frames=1 pressed_keys=0 has_frame=true");
+    close(next);
+    EXPECT_TRUE(std::filesystem::exists(sock_));
+}
+TEST_F(ServerTest, SignalWakesWaiterAndRemovesSocket) {
     int control = connect_as("CONTROL"), view = connect_as("VIEW");
     ASSERT_GE(control, 0); ASSERT_GE(view, 0);
     EXPECT_EQ(request(view, "WAIT_FRAME 1").body, "NO_FRAME");
     Reply pending{};
     std::thread waiter([&] { pending = request(view, "WAIT_FRAME 120000"); });
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    EXPECT_EQ(request(control, "QUIT").result, 'S');
+    EXPECT_EQ(kill(pid_, SIGTERM), 0);
     waiter.join();
     EXPECT_EQ(pending.result, 'E'); EXPECT_EQ(pending.body, "SERVER_SHUTDOWN");
     close(control); close(view);
@@ -200,6 +213,7 @@ TEST_F(ServerTest, LogsConnectionRequestResponseAndBinarySummary) {
     ASSERT_EQ(request(view, "CAPTURE").result, 'S');
     ASSERT_EQ(request(control, "QUIT").result, 'S');
     close(view); close(control);
+    ASSERT_EQ(kill(pid_, SIGTERM), 0);
     int status = 0; ASSERT_EQ(waitpid(pid_, &status, 0), pid_); pid_ = -1;
     std::ifstream file(log_);
     std::string logs((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());

@@ -1,15 +1,14 @@
 import { Result } from '@praha/byethrow'
 import type { MgbaClient } from 'src/external/mgba-client'
 import { CommandFailedError } from 'src/external/mgba-client/response/errors'
-import type { Executor } from 'src/lib/run-in-executor'
+import type { RunWithMgbaClient } from 'src/external/mgba-client/run-with-client'
 import { z } from 'zod'
 
 import { encodePng } from '../../../lib/image-encoder'
 import { McpTool } from '../../../lib/mcp-tools'
 
 type Bindings = {
-  'mgba-client': MgbaClient
-  'run-in-executor': Executor
+  'run-with-mgba-client': RunWithMgbaClient
 }
 
 const ToolOutputSchema = z.object({
@@ -59,10 +58,9 @@ const tool = new McpTool<{ Bindings: Bindings }>().register('get_screen', {
   input: z.object({}),
   outputSchema: ToolOutputSchema,
   handler: (c) => {
-    const client = c.get('mgba-client')
-    const runInExecutor = c.get('run-in-executor')
+    const runWithMgbaClient = c.get('run-with-mgba-client')
 
-    return runInExecutor(async () => {
+    return runWithMgbaClient(async (client) => {
       const { capture, framesAdvanced } = await captureScreen(client)
       const totalFrames = Number(capture.frames)
       if (!Number.isSafeInteger(totalFrames)) {

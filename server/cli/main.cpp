@@ -127,7 +127,7 @@ public:
         frame_cv_.notify_all();
         work_cv_.notify_all();
         close(listener);
-        // Allow in-flight QUIT and WAIT_FRAME responses to finish before interrupting idle reads.
+        // 進行中のWAIT_FRAME応答が完了してから待機中の読み取りを中断する
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         { std::lock_guard<std::mutex> lock(clients_mutex_);
           for (int fd : fds_) if (fd >= 0) shutdown(fd, SHUT_RDWR); }
@@ -169,8 +169,6 @@ private:
                 mgba_session_read(&session_, c.argument.read.address,
                                   reinterpret_cast<uint8_t*>(result.body.data()),
                                   c.argument.read.length);
-            } else if (c.type == MGBA_COMMAND_QUIT) {
-                stopping_ = true; frame_cv_.notify_all(); work_cv_.notify_all();
             }
             work->promise.set_value(std::move(result));
         }
@@ -273,10 +271,16 @@ private:
                     std::lock_guard<std::mutex> lock(state_mutex_);
                     result.body = "frames=" + std::to_string(frames_) + " pressed_keys=" + std::to_string(keys_) + " has_frame=" + (has_frame_ ? "true" : "false");
                 } else if (c.type == MGBA_COMMAND_CAPTURE) result = capture(seen, seen_set);
-                else { result = submit(c); close_after = c.type == MGBA_COMMAND_QUIT; }
+                else if (c.type == MGBA_COMMAND_QUIT) close_after = true;
+                else result = submit(c);
+            }
+            if (close_after && owns_control) {
+                std::lock_guard<std::mutex> lock(control_mutex_);
+                control_taken_ = false;
+                owns_control = false;
             }
             if (!respond(result, line.substr(0, line.find(' ')), start)) break;
-            if (close_after) { reason = "shutdown"; break; }
+            if (close_after) { reason = "quit"; break; }
         }
     done:
         if (owns_control) { std::lock_guard<std::mutex> lock(control_mutex_); control_taken_ = false; }
@@ -330,6 +334,6 @@ int main(int argc, char** argv) {
     log_line("INFO", "server_started", "rom=" + escaped(rom) + " socket=" + escaped(path));
     server.run(fd);
     unlink(path.c_str());
-    log_line("INFO", "server_stopped", "rom=" + escaped(rom) + " socket=" + escaped(path) + " reason=" + (signal_stop ? "signal" : "quit"));
+    log_line("INFO", "server_stopped", "rom=" + escaped(rom) + " socket=" + escaped(path) + " reason=signal");
     return 0;
 }

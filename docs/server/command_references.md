@@ -54,7 +54,7 @@ frames=<uint64> pressed_keys=<uint32> has_frame=<true|false>
 | `STATUS` | `CONTROL`, `VIEW` | 状態本文 | 現在の状態を返す |
 | `CAPTURE` | `CONTROL`, `VIEW` | 画像本文 | 現在の公開画面を返す |
 | `WAIT_FRAME <timeout_ms>` | `VIEW` | 画像本文 | 1～120000 ミリ秒まで画面状態の更新を待つ |
-| `QUIT` | `CONTROL` | なし | サーバの終了処理を始める |
+| `QUIT` | `CONTROL` | なし | 成功応答を返してCONTROL接続を閉じる。サーバとゲームの状態は維持する |
 
 `button` は `A`, `B`, `SELECT`, `START`, `RIGHT`, `LEFT`, `UP`, `DOWN` のいずれかです。`RELEASE` のみ `ALL` も指定できます。
 
