@@ -77,14 +77,24 @@ protected:
         if (pid_ > 0) { kill(pid_, SIGTERM); waitpid(pid_, nullptr, 0); }
         std::error_code ignored;
         std::filesystem::remove(rom_, ignored);
+        auto save = rom_;
+        save.replace_extension(".sav");
+        std::filesystem::remove(save, ignored);
         std::filesystem::remove(sock_, ignored);
         std::filesystem::remove(log_, ignored);
     }
     int connect_as(const char* role) {
-        int fd = socket(AF_UNIX, SOCK_STREAM, 0);
         sockaddr_un addr{}; addr.sun_family = AF_UNIX;
         strcpy(addr.sun_path, sock_.c_str());
-        if (connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof addr) != 0) { close(fd); return -1; }
+        int fd = -1;
+        for (int attempt = 0; attempt < 200; ++attempt) {
+            fd = socket(AF_UNIX, SOCK_STREAM, 0);
+            if (connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof addr) == 0) break;
+            close(fd);
+            fd = -1;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        if (fd < 0) return -1;
         auto hello = request(fd, std::string("HELLO ") + role);
         if (hello.result != 'S') { close(fd); return -1; }
         return fd;
