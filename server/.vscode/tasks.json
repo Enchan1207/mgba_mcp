@@ -1,0 +1,45 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "mgba_server: 構成",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "target"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "mgba_server: ビルド",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "--preset", "target"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "mgba_server: 構成",
+      "problemMatcher": []
+    },
+    {
+      "label": "mgba_server: 起動",
+      "type": "process",
+      "command": "${workspaceFolder}/build/target/cli/mgba_server",
+      "args": ["--rom", "${input:romPath}", "--socket", "/private/tmp/mgba.sock"],
+      "icon": { "id": "server-process", "color": "terminal.ansiYellow" },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "mgba_server: ビルド",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "romPath",
+      "type": "promptString",
+      "description": "起動する ROM ファイルの絶対パス"
+    }
+  ]
+}
