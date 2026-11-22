@@ -190,5 +190,7 @@ export class McpTool<Env extends ToolEnv = ToolEnv> {
         },
       )
     }
+
+    return server
   }
 }

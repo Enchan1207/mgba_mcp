@@ -11,73 +11,15 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
 const entrypoint = fileURLToPath(new URL('handler.ts', import.meta.url))
 
-describe('stdio server', () => {
-  let child: ChildProcessWithoutNullStreams | undefined
-  let actual: unknown
-
-  beforeAll(async () => {
-    child = spawn('tsx', [entrypoint], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env: {
-        ...process.env,
-        MGBA_MCP_SOCKET_PATH: '/tmp/mgba-mcp-stdio-test.sock',
-      },
-    })
-
-    const response = new Promise<unknown>((resolve, reject) => {
-      let output = ''
-      child?.stdout.setEncoding('utf8')
-      child?.stdout.on('data', (chunk: string) => {
-        output += chunk
-        const newline = output.indexOf('\n')
-        if (newline !== -1) {
-          try {
-            resolve(JSON.parse(output.slice(0, newline)) as unknown)
-          } catch (error) {
-            reject(error instanceof Error ? error : new Error(String(error)))
-          }
-        }
-      })
-      child?.on('error', reject)
-      child?.on('exit', (code) => {
-        reject(new Error(`Server exited with code ${code}`))
-      })
-    })
-
-    child.stdin.write(
-      `${JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'initialize',
-        params: {
-          protocolVersion: '2025-11-25',
-          capabilities: {},
-          clientInfo: { name: 'mgba-mcp-test', version: '1.0.0' },
-        },
-      })}\n`,
-    )
-    actual = await response
-  }, 10000)
-
-  afterAll(() => {
-    child?.kill()
-  })
-
-  test('MCP initialize 要求にサーバ情報を返す', () => {
-    expect(actual).toMatchObject({
-      jsonrpc: '2.0',
-      id: 1,
-      result: { serverInfo: { name: 'mgba-mcp', version: '0.1.0' } },
-    })
-  })
-})
-
 describe('並行するstdio要求', () => {
   let directory: string | undefined
   let socketServer: Server | undefined
   let child: ChildProcessWithoutNullStreams | undefined
   const sockets = new Set<Socket>()
   const commands: string[] = []
+  let initializeResult: unknown
+  let invalidInputResult: unknown
+  let listedTools: unknown
   let listBeforeOperation = false
   let firstResult: unknown
   let secondResult: unknown
@@ -176,7 +118,7 @@ describe('並行するstdio要求', () => {
       )
       return response
     }
-    await request(1, 'initialize', {
+    initializeResult = await request(1, 'initialize', {
       protocolVersion: '2025-11-25',
       capabilities: {},
       clientInfo: { name: 'test', version: '1' },
@@ -184,6 +126,11 @@ describe('並行するstdio要求', () => {
     child.stdin.write(
       `${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`,
     )
+
+    invalidInputResult = await request(7, 'tools/call', {
+      name: 'press_button',
+      arguments: { button: 'X' },
+    })
 
     const first = request(2, 'tools/call', {
       name: 'press_button',
@@ -194,7 +141,7 @@ describe('並行するstdio要求', () => {
       name: 'press_button',
       arguments: { button: 'B' },
     })
-    await request(3, 'tools/list', {})
+    listedTools = await request(3, 'tools/list', {})
     listBeforeOperation = true
     releaseType?.()
     firstResult = await first
@@ -241,6 +188,24 @@ describe('並行するstdio要求', () => {
 
   test('tools/listはゲーム操作の完了を待たない', () => {
     expect(listBeforeOperation).toBe(true)
+  })
+
+  test('MCP initialize 要求にサーバ情報を返す', () => {
+    expect(initializeResult).toMatchObject({
+      jsonrpc: '2.0',
+      id: 1,
+      result: { serverInfo: { name: 'mgba-mcp', version: '0.1.0' } },
+    })
+  })
+
+  test('子ノードのツールを一覧に載せる', () => {
+    expect(listedTools).toMatchObject({
+      result: { tools: [{ name: 'press_button' }] },
+    })
+  })
+
+  test('不正な入力でゲーム操作を開始しない', () => {
+    expect(invalidInputResult).toMatchObject({ result: { isError: true } })
   })
 
   test('各要求へ結果を返す', () => {

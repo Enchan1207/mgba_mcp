@@ -1,13 +1,27 @@
 import type { Socket } from 'node:net'
 
 import { Result } from '@praha/byethrow'
-import { withBufferedReader } from 'src/lib/socket-client/reader'
 
+import { withBufferedReader } from '../../lib/socket-client/reader'
 import type { MgbaServerCommand } from './command'
 import { parseCommand } from './command'
+import type { InvalidArgumentError } from './command/errors'
+import type {
+  CommandFailedError,
+  TooLargeResponseError,
+} from './response/errors'
 import type { MgbaResponseTypeFor } from './response/parse'
 import { createSucceededResponseParser as parseSucceededResponse } from './response/parse'
 import { createResponseReader } from './response/reader'
+
+export type MgbaClient = {
+  send: <Command extends MgbaServerCommand>(
+    command: Command,
+  ) => Result.ResultAsync<
+    MgbaResponseTypeFor<Command['verb']>,
+    CommandFailedError | TooLargeResponseError | InvalidArgumentError
+  >
+}
 
 const write = (socket: Socket) => (data: string | Uint8Array) =>
   new Promise<void>((resolve, reject) => {
@@ -41,5 +55,5 @@ export const createMgbaClient = (socket: Socket) => {
 
   return {
     send,
-  }
+  } satisfies MgbaClient
 }

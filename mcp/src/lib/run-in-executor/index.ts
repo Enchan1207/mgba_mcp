@@ -1,4 +1,6 @@
-export const createExecutor = () => {
+export type Executor = <T>(task: () => Promise<T>) => Promise<T>
+
+export const createExecutor = (): Executor => {
   let tail: Promise<unknown> = Promise.resolve()
 
   return <T>(task: () => Promise<T>) => {
