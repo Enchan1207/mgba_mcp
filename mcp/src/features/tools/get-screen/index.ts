@@ -62,12 +62,8 @@ const tool = new McpTool<{ Bindings: Bindings }>().register('get_screen', {
 
     return runWithMgbaClient(async (client) => {
       const { capture, framesAdvanced } = await captureScreen(client)
-      const totalFrames = Number(capture.frames)
-      if (!Number.isSafeInteger(totalFrames)) {
-        throw new RangeError('画像の累積フレーム数が安全な整数の範囲外です')
-      }
       const png = await encodePng(capture)
-      const result = { framesAdvanced, totalFrames }
+      const result = { framesAdvanced, totalFrames: capture.frames }
 
       return {
         content: [

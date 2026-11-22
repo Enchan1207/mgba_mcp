@@ -114,3 +114,65 @@ describe('waitの失敗時', () => {
     expect(actual?.isError).toBe(true)
   })
 })
+
+describe('waitで画像を返す場合', () => {
+  const commands: MgbaServerCommand[] = []
+  const client = {
+    send: (command: MgbaServerCommand) => {
+      commands.push(command)
+      return Result.succeed(
+        command.verb === 'capture'
+          ? {
+              frames: 42,
+              width: 160,
+              height: 144,
+              pixels: Buffer.alloc(160 * 144 * 4),
+            }
+          : undefined,
+      )
+    },
+  } as unknown as MgbaClient
+  let actual: CallToolResult | undefined
+
+  beforeAll(async () => {
+    let callback: ((input: object) => Promise<CallToolResult>) | undefined
+    const server = {
+      registerTool: (
+        _name: string,
+        _config: unknown,
+        handler: (input: object) => Promise<CallToolResult>,
+      ) => {
+        callback = handler
+      },
+    } as unknown as McpServer
+    new McpTool()
+      .route(tool)
+      .bind('run-with-mgba-client', ((task) =>
+        Promise.resolve().then(() => task(client))) satisfies RunWithMgbaClient)
+      .mount(server)
+    actual = await callback?.({ frames: 3, includeScreen: true })
+  })
+
+  test('操作後に画面を取得する', () => {
+    expect(commands).toStrictEqual([
+      { verb: 'release', args: ['all'] },
+      { verb: 'step', args: [3] },
+      { verb: 'capture' },
+    ])
+  })
+
+  test('画像の取得時点の累積フレーム数を返す', () => {
+    expect(actual?.structuredContent).toStrictEqual({
+      framesAdvanced: 3,
+      totalFrames: 42,
+    })
+  })
+
+  test('PNG画像を返す', () => {
+    const image = actual?.content.find((item) => item.type === 'image')
+    const png = Buffer.from((image as { data: string }).data, 'base64')
+    expect(png.subarray(0, 8)).toStrictEqual(
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    )
+  })
+})

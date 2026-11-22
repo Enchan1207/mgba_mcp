@@ -15,7 +15,7 @@ describe('get_screenで画面がある場合', () => {
     send: (command: MgbaServerCommand) => {
       commands.push(command)
       return Result.succeed({
-        frames: 42n,
+        frames: 42,
         width: 160,
         height: 144,
         pixels: Buffer.alloc(160 * 144 * 4),
@@ -83,7 +83,7 @@ describe('get_screenで画面がない場合', () => {
         )
       }
       return Result.succeed({
-        frames: 1n,
+        frames: 1,
         width: 160,
         height: 144,
         pixels: Buffer.alloc(160 * 144 * 4),
