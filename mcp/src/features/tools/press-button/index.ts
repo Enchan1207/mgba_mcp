@@ -11,19 +11,23 @@ type Bindings = {
   'run-in-executor': Executor
 }
 
+const ToolInputSchema = z.object({
+  button: z
+    .enum(['A', 'B', 'SELECT', 'START', 'RIGHT', 'LEFT', 'UP', 'DOWN'])
+    .transform((button) => button.toLowerCase() as Button),
+  frames: z.number().int().min(1).max(18000).default(10),
+})
+
+const ToolOutputSchema = z.object({
+  framesAdvanced: z.number().int(),
+  totalFrames: z.number().int(),
+})
+
 const tool = new McpTool<{ Bindings: Bindings }>().register('press_button', {
   title: 'ボタンを押す',
   description: 'ゲームボーイのボタンを押し、同じフレーム数だけ離す',
-  input: z.object({
-    button: z
-      .enum(['A', 'B', 'SELECT', 'START', 'RIGHT', 'LEFT', 'UP', 'DOWN'])
-      .transform((button) => button.toLowerCase() as Button),
-    frames: z.number().int().min(1).max(18000).default(10),
-  }),
-  outputSchema: z.object({
-    framesAdvanced: z.number().int(),
-    totalFrames: z.number().int(),
-  }),
+  input: ToolInputSchema,
+  outputSchema: ToolOutputSchema,
   handler: (c) => {
     const client = c.get('mgba-client')
     const runInExecutor = c.get('run-in-executor')
@@ -31,15 +35,19 @@ const tool = new McpTool<{ Bindings: Bindings }>().register('press_button', {
 
     return runInExecutor(async () => {
       try {
-        await Result.unwrap(client.send({ verb: 'release', args: ['all'] }))
-        await Result.unwrap(
-          client.send({ verb: 'type', args: [button, frames] }),
+        const result = await Result.pipe(
+          client.send({ verb: 'release', args: ['all'] }),
+          Result.andThen(() =>
+            client.send({ verb: 'type', args: [button, frames] }),
+          ),
+          Result.andThen(() => client.send({ verb: 'status' })),
+          Result.map((status) => ({
+            framesAdvanced: frames * 2,
+            totalFrames: status.frames,
+          })),
+          Result.unwrap(),
         )
-        const status = await Result.unwrap(client.send({ verb: 'status' }))
-        const result = {
-          framesAdvanced: frames * 2,
-          totalFrames: status.frames,
-        }
+
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result) }],
           structuredContent: result,
