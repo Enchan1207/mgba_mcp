@@ -68,8 +68,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.contentView = content
 
         let pathLabel = label("Unix ソケットパス")
-        let path = NSTextField(string: "")
-        path.placeholderString = "/private/tmp/mgba.sock"
+        let path = NSTextField(string: "/private/tmp/mgba.sock")
         let waitLabel = label("待機時間（秒）")
         let wait = NSTextField(string: "60")
         let error = label("")
