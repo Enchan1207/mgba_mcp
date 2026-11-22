@@ -17,7 +17,7 @@ describe('press_buttonで画像を返す場合', () => {
       return Result.succeed(
         command.verb === 'capture'
           ? {
-              frames: 42n,
+              frames: 42,
               width: 160,
               height: 144,
               pixels: Buffer.alloc(160 * 144 * 4),

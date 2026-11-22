@@ -81,23 +81,37 @@ describe('createSucceededResponseParser', () => {
         createSucceededResponseParser({ verb: 'capture', responseRaw }),
       ).toStrictEqual({
         verb: 'capture',
-        frames: 42n,
+        frames: 42,
         width: 160,
         height: 144,
         pixels,
       })
     })
 
-    test('uint64の最大フレーム番号を保持する', () => {
+    test('安全な最大フレーム番号を返す', () => {
       const responseRaw = Buffer.alloc(10 + 160 * 144 * 4)
-      responseRaw.writeBigUInt64LE(0xffff_ffff_ffff_ffffn, 0)
+      responseRaw.writeBigUInt64LE(BigInt(Number.MAX_SAFE_INTEGER), 0)
       responseRaw.writeUInt8(160, 8)
       responseRaw.writeUInt8(144, 9)
 
       expect(
         createSucceededResponseParser({ verb: 'capture', responseRaw }).frames,
-      ).toBe(0xffff_ffff_ffff_ffffn)
+      ).toBe(Number.MAX_SAFE_INTEGER)
     })
+
+    test.each([BigInt(Number.MAX_SAFE_INTEGER) + 1n, 0xffff_ffff_ffff_ffffn])(
+      '扱えないフレーム番号%sを拒否する',
+      (frames) => {
+        const responseRaw = Buffer.alloc(10 + 160 * 144 * 4)
+        responseRaw.writeBigUInt64LE(frames, 0)
+        responseRaw.writeUInt8(160, 8)
+        responseRaw.writeUInt8(144, 9)
+
+        expect(() =>
+          createSucceededResponseParser({ verb: 'capture', responseRaw }),
+        ).toThrow(UnexpectedResponseFormatError)
+      },
+    )
 
     test.each([0, 9])('本文が%dバイトなら拒否する', (length) => {
       expect(() =>

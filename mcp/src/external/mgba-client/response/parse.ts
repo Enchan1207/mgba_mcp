@@ -17,7 +17,7 @@ type StatusCommandResponse = {
 
 type CaptureCommandResponse = {
   verb: 'capture'
-  frames: bigint
+  frames: number
   width: number
   height: number
   pixels: Buffer
@@ -74,9 +74,14 @@ const parseCaptureResponse = (responseRaw: Buffer): CaptureCommandResponse => {
     throw new UnexpectedResponseFormatError('画像の寸法または長さが不正です')
   }
 
+  const frames = Number(responseRaw.readBigUInt64LE(0))
+  if (!Number.isSafeInteger(frames)) {
+    throw new UnexpectedResponseFormatError('応答の数値が範囲外です')
+  }
+
   return {
     verb: 'capture',
-    frames: responseRaw.readBigUInt64LE(0),
+    frames,
     width,
     height,
     pixels: responseRaw.subarray(CAPTURE_HEADER_LENGTH),

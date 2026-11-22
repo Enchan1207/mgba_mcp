@@ -39,12 +39,8 @@ const tool = new McpTool<{ Bindings: Bindings }>().register('wait', {
         const framesAdvanced = frames
         if (includeScreen) {
           const capture = await Result.unwrap(client.send({ verb: 'capture' }))
-          const totalFrames = Number(capture.frames)
-          if (!Number.isSafeInteger(totalFrames)) {
-            throw new RangeError('画像の累積フレーム数が安全な整数の範囲外です')
-          }
           const png = await encodePng(capture)
-          const result = { framesAdvanced, totalFrames }
+          const result = { framesAdvanced, totalFrames: capture.frames }
           return {
             content: [
               { type: 'text' as const, text: JSON.stringify(result) },
