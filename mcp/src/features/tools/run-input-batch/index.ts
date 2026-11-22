@@ -1,6 +1,7 @@
 import { Result } from '@praha/byethrow'
 import type { Button } from 'src/external/mgba-client/command'
 import type { RunWithMgbaClient } from 'src/external/mgba-client/run-with-client'
+import { match } from 'ts-pattern'
 import { z } from 'zod'
 
 import { encodePng } from '../../../lib/image-encoder'
@@ -53,20 +54,26 @@ const tool = new McpTool<{ Bindings: Bindings }>().register('run_input_batch', {
       try {
         for (const step of steps) {
           // oxlint-disable-next-line no-await-in-loop -- ステップを指定順に実行する
-          await Result.unwrap(client.send({ verb: 'release', args: ['all'] }))
-          if (step.type === 'press_button') {
-            // oxlint-disable-next-line no-await-in-loop -- 前の操作の完了を待つ
-            await Result.unwrap(
-              client.send({ verb: 'type', args: [step.button, step.frames] }),
-            )
-            framesAdvanced += step.frames * 2
-          } else {
-            // oxlint-disable-next-line no-await-in-loop -- 前の操作の完了を待つ
-            await Result.unwrap(
-              client.send({ verb: 'step', args: [step.frames] }),
-            )
-            framesAdvanced += step.frames
-          }
+          framesAdvanced += await Result.pipe(
+            client.send({ verb: 'release', args: ['all'] }),
+            Result.andThen(() =>
+              match(step)
+                .with({ type: 'press_button' }, ({ button, frames }) =>
+                  Result.pipe(
+                    client.send({ verb: 'type', args: [button, frames] }),
+                    Result.map(() => frames * 2),
+                  ),
+                )
+                .with({ type: 'wait' }, ({ frames }) =>
+                  Result.pipe(
+                    client.send({ verb: 'step', args: [frames] }),
+                    Result.map(() => frames),
+                  ),
+                )
+                .exhaustive(),
+            ),
+            Result.unwrap(),
+          )
         }
 
         if (includeScreen) {
