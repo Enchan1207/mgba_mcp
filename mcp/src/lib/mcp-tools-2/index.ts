@@ -1,31 +1,41 @@
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { z } from 'zod'
 
 // MARK: Definitions
+
+type InputType = z.ZodObject
+type OutputType = z.ZodObject
 
 /** ツール環境 */
 type ToolEnv = { Bindings: object }
 
 /** ツールハンドラに渡されるコンテキスト */
-type ToolContext<Input extends z.ZodType, Env extends ToolEnv> = {
+type ToolContext<Input extends InputType, Env extends ToolEnv> = {
   input: z.infer<Input>
   get: <Key extends keyof Env['Bindings']>(key: Key) => Env['Bindings'][Key]
 }
 
+/** ツール構成 */
+type ToolConfig<Input extends InputType, Output extends OutputType> = {
+  title: string
+  description: string
+  input: Input
+  output: Output
+}
+
 /** ツールハンドラ */
 type ToolHandler<
-  Input extends z.ZodType,
-  Output extends z.ZodType,
+  Input extends InputType,
+  Output extends OutputType,
   Env extends ToolEnv,
 > = (c: ToolContext<Input, Env>) => z.infer<Output> | Promise<z.infer<Output>>
 
 /** ツール定義 */
 type ToolDefinition<
-  Input extends z.ZodType,
-  Output extends z.ZodType,
+  Input extends InputType,
+  Output extends OutputType,
   Env extends ToolEnv,
-> = {
-  input: Input
-  output: Output
+> = ToolConfig<Input, Output> & {
   handler: ToolHandler<Input, Output, Env>
 }
 
@@ -51,7 +61,10 @@ type WithBinding<Env extends ToolEnv, Key extends string, Value> = Omit<
 
 /** MCPツール */
 export class McpTool<Env extends ToolEnv = ToolEnv> {
-  private readonly tools: Map<string, ToolDefinition<z.ZodType, z.ZodType, Env>>
+  private readonly tools: Map<
+    string,
+    ToolDefinition<InputType, OutputType, Env>
+  >
 
   private bindings: Record<string, unknown>
 
@@ -63,21 +76,29 @@ export class McpTool<Env extends ToolEnv = ToolEnv> {
   /**
    * ツールを登録する
    * @param name ツール名
+   * @param title ツール表示名
+   * @param description ツール説明
    * @param input 入力スキーマ
    * @param output 出力スキーマ
    * @param handler ツールハンドラ
    * @returns ツールの登録されたMcpToolインスタンス
    */
-  public register<Input extends z.ZodType, Output extends z.ZodType>(
+  public register<Input extends InputType, Output extends OutputType>(
     name: string,
-    input: Input,
-    output: Output,
-    handler: ToolHandler<Input, Output, Env>,
+    props: {
+      title: string
+      description: string
+      input: Input
+      output: Output
+      handler: ToolHandler<Input, Output, Env>
+    },
   ) {
     this.tools.set(name, {
-      input,
-      output,
-      handler,
+      title: props.title,
+      description: props.description,
+      input: props.input,
+      output: props.output,
+      handler: props.handler,
     })
 
     return this
@@ -109,7 +130,7 @@ export class McpTool<Env extends ToolEnv = ToolEnv> {
 
     const combinedTools = this.tools as unknown as Map<
       string,
-      ToolDefinition<z.ZodType, z.ZodType, MergeEnv<Env, ChildEnv>>
+      ToolDefinition<InputType, OutputType, MergeEnv<Env, ChildEnv>>
     >
 
     for (const [key, tool] of child.tools) {
@@ -120,13 +141,58 @@ export class McpTool<Env extends ToolEnv = ToolEnv> {
       combinedTools.set(
         key,
         tool as unknown as ToolDefinition<
-          z.ZodType,
-          z.ZodType,
+          InputType,
+          OutputType,
           MergeEnv<Env, ChildEnv>
         >,
       )
     }
 
     return this as unknown as McpTool<MergeEnv<Env, ChildEnv>>
+  }
+
+  public mount(server: McpServer) {
+    for (const [name, definition] of this.tools) {
+      server.registerTool(
+        name,
+        {
+          title: definition.title,
+          description: definition.description,
+          inputSchema: definition.input,
+          outputSchema: definition.output,
+        },
+        async (input) => {
+          const context: ToolContext<typeof definition.input, Env> = {
+            input,
+            get: (key) => (this.bindings as unknown as Env['Bindings'])[key],
+          }
+
+          try {
+            const result = await definition.handler(context)
+            const parsed = definition.output.parse(result)
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(parsed),
+                },
+              ],
+              structuredContent: parsed,
+            }
+          } catch (error: unknown) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: String(error),
+                },
+              ],
+              isError: true,
+            }
+          }
+        },
+      )
+    }
   }
 }
