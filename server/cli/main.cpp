@@ -108,6 +108,7 @@ struct Work { mgba_command command; std::promise<Result> promise; };
 class Server {
 public:
     explicit Server(const char* rom) : rom_(rom) {}
+    ~Server() { mgba_session_deinit(&session_); }
     bool init() { return mgba_session_init(&session_, rom_.c_str()); }
     void run(int listener) {
         worker_ = std::thread([this] { worker_loop(); });
@@ -133,7 +134,6 @@ public:
           for (int fd : fds_) if (fd >= 0) shutdown(fd, SHUT_RDWR); }
         for (auto& t : clients_) t.join();
         worker_.join();
-        mgba_session_deinit(&session_);
     }
     bool stopping() const { return stopping_; }
 private:

@@ -1,6 +1,9 @@
 #include "mgba_server/session.h"
 
+#include <errno.h>
 #include <mgba/internal/gb/input.h>
+#include <stdio.h>
+#include <string.h>
 
 /// @brief ボタンを mGBA の入力ビットに変換する
 /// @param button 変換するボタン
@@ -50,6 +53,17 @@ bool mgba_session_init(struct mgba_session* session, const char* rom_path) {
 
     mCoreInitConfig(core, NULL);
     session->config_initialized = true;
+    // 設定が保存先を変更する前に、ROMと同じ場所の.savを開く。
+    errno = 0;
+    if (!mCoreAutoloadSave(core)) {
+        int save_errno = errno;
+        const char* separator = strrchr(rom_path, '/');
+        int directory_length = separator ? (int)(separator - rom_path + 1) : 0;
+        fprintf(stderr, "save_failed path=%.*s%s.sav errno=%d reason=%s\n",
+                directory_length, rom_path, core->dirs.baseName, save_errno,
+                save_errno ? strerror(save_errno) : "unknown");
+        goto fail;
+    }
     mCoreLoadConfig(core);
     // The public frame format is 160x144, including for Super Game Boy ROMs.
     // Apply these after loading user configuration so local mGBA settings cannot override them.
