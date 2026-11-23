@@ -80,11 +80,12 @@ const tool = new McpTool<{ Bindings: Bindings }>().register('get_screen', {
             : [
                 {
                   type: 'text' as const,
-                  text:
-                    'Screen text (tile coordinates, y is 0-based):\n' +
-                    screenText.lines
-                      .map(({ y, text }) => `y=${y}: ${JSON.stringify(text)}`)
-                      .join('\n'),
+                  text: `Screen text (tile coordinates, y is 0-based):\n${screenText.lines
+                    .map(
+                      ({ y: rowIndex, text }) =>
+                        `y=${rowIndex}: ${JSON.stringify(text)}`,
+                    )
+                    .join('\n')}`,
                 },
               ]),
           {
