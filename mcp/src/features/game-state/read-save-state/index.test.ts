@@ -27,16 +27,26 @@ const header = (revision = 0) => {
 
 const fixture = (memory: Map<number, Uint8Array>): ReadMemory =>
   vi.fn<ReadMemory>((address, length) => {
-    if (address === 0x134) { return Promise.resolve(header()) }
+    if (address === 0x134) {
+      return Promise.resolve(header())
+    }
     const bytes = memory.get(address)
-    if (!bytes) { return Promise.reject(new Error(`unexpected READ ${address.toString(16)}`)) }
+    if (!bytes) {
+      return Promise.reject(
+        new Error(`unexpected READ ${address.toString(16)}`),
+      )
+    }
     return Promise.resolve(bytes.subarray(0, length))
   })
 
 describe('Japanese Pokémon Red state decoding', () => {
   test.each([
     ['valid BCD', () => decodeBcd(Uint8Array.of(0x12, 0x34, 0x56)), 123456],
-    ['Japanese name', () => decodeName(Uint8Array.of(0x80, 0xb1, 0x50, 0x80)), 'アあ'],
+    [
+      'Japanese name',
+      () => decodeName(Uint8Array.of(0x80, 0xb1, 0x50, 0x80)),
+      'アあ',
+    ],
     ['Mew species', () => speciesName(0x15), 'Mew'],
     ['unknown species', () => speciesName(0), null],
     ['Tackle move', () => moveName(0x21), 'Tackle'],
@@ -52,14 +62,20 @@ describe('Japanese Pokémon Red state decoding', () => {
   })
 
   test('プレイヤー: 座標、所持金、バッジ', async () => {
-    const read = fixture(new Map([
-      [0xd11d, Uint8Array.of(0x80, 0xb1, 0x50, 0, 0, 0)],
-      [0xd2dd, Uint8Array.of(3, 0, 0, 7, 9)],
-      [0xd2cb, Uint8Array.of(0x01, 0x23, 0x45)],
-      [0xd2d5, Uint8Array.of(0x81)],
-    ]))
+    const read = fixture(
+      new Map([
+        [0xd11d, Uint8Array.of(0x80, 0xb1, 0x50, 0, 0, 0)],
+        [0xd2dd, Uint8Array.of(3, 0, 0, 7, 9)],
+        [0xd2cb, Uint8Array.of(0x01, 0x23, 0x45)],
+        [0xd2d5, Uint8Array.of(0x81)],
+      ]),
+    )
     await expect(readPlayerState(read)).resolves.toStrictEqual({
-      name: 'アあ', mapId: 3, x: 9, y: 7, money: 12345,
+      name: 'アあ',
+      mapId: 3,
+      x: 9,
+      y: 7,
+      money: 12345,
       badges: [true, false, false, false, false, false, false, true],
     })
   })
@@ -72,26 +88,38 @@ describe('Japanese Pokémon Red state decoding', () => {
     entry[29] = 0x4a
     entry[33] = 7
     entry.set([0, 29], 34)
-    const read = fixture(new Map([
-      [0xd123, Uint8Array.of(1, 0x15, 0xff, 0, 0, 0, 0, 0)],
-      [0xd12b, entry],
-      [0xd257, Uint8Array.of(0x80, 0x50, 0, 0, 0, 0)],
-    ]))
+    const read = fixture(
+      new Map([
+        [0xd123, Uint8Array.of(1, 0x15, 0xff, 0, 0, 0, 0, 0)],
+        [0xd12b, entry],
+        [0xd257, Uint8Array.of(0x80, 0x50, 0, 0, 0, 0)],
+      ]),
+    )
     await expect(readPartyState(read)).resolves.toStrictEqual({
-      pokemon: [{
-        position: 0, speciesId: 0x15, species: 'Mew', nickname: 'ア',
-        level: 7, hp: 23, maxHp: 29, status: 0,
-        moves: [{ id: 33, name: 'Tackle', pp: 10, ppUps: 1 }],
-      }],
+      pokemon: [
+        {
+          position: 0,
+          speciesId: 0x15,
+          species: 'Mew',
+          nickname: 'ア',
+          level: 7,
+          hp: 23,
+          maxHp: 29,
+          status: 0,
+          moves: [{ id: 33, name: 'Tackle', pp: 10, ppUps: 1 }],
+        },
+      ],
       warning: '戦闘中のHP・PPは手持ち領域に未反映の場合があります',
     })
   })
 
   test('バッグ: 並び順を保存する', async () => {
-    const read = fixture(new Map([
-      [0xd2a1, Uint8Array.of(2)],
-      [0xd2a2, Uint8Array.of(0x28, 9, 0x04, 5, 0xff)],
-    ]))
+    const read = fixture(
+      new Map([
+        [0xd2a1, Uint8Array.of(2)],
+        [0xd2a2, Uint8Array.of(0x28, 9, 0x04, 5, 0xff)],
+      ]),
+    )
     await expect(readBagState(read)).resolves.toStrictEqual({
       items: [
         { position: 0, id: 40, name: 'Rare Candy', quantity: 9 },
@@ -101,18 +129,27 @@ describe('Japanese Pokémon Red state decoding', () => {
   })
 
   test('空の手持ちとバッグ', async () => {
-    const read = fixture(new Map([
-      [0xd123, Uint8Array.of(0, 0xff, 0, 0, 0, 0, 0, 0)],
-      [0xd2a1, Uint8Array.of(0)],
-    ]))
-    await expect(Promise.all([readPartyState(read), readBagState(read)])).resolves.toStrictEqual([
-      { pokemon: [], warning: '戦闘中のHP・PPは手持ち領域に未反映の場合があります' },
+    const read = fixture(
+      new Map([
+        [0xd123, Uint8Array.of(0, 0xff, 0, 0, 0, 0, 0, 0)],
+        [0xd2a1, Uint8Array.of(0)],
+      ]),
+    )
+    await expect(
+      Promise.all([readPartyState(read), readBagState(read)]),
+    ).resolves.toStrictEqual([
+      {
+        pokemon: [],
+        warning: '戦闘中のHP・PPは手持ち領域に未反映の場合があります',
+      },
       { items: [] },
     ])
   })
 
   test('未対応ROMでは状態を読まない', async () => {
-    const unsupported = vi.fn<ReadMemory>(() => Promise.resolve(new Uint8Array(28)))
+    const unsupported = vi.fn<ReadMemory>(() =>
+      Promise.resolve(new Uint8Array(28)),
+    )
     await expect(readPlayerState(unsupported)).resolves.toBeNull()
   })
 
@@ -122,7 +159,9 @@ describe('Japanese Pokémon Red state decoding', () => {
   })
 
   test('通信エラーは伝播する', async () => {
-    const failure = vi.fn<ReadMemory>(() => Promise.reject(new Error('socket closed')))
+    const failure = vi.fn<ReadMemory>(() =>
+      Promise.reject(new Error('socket closed')),
+    )
     await expect(readPlayerState(failure)).rejects.toThrow('socket closed')
   })
 })
