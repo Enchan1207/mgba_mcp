@@ -1,4 +1,4 @@
-import { McpTool } from '../../lib/mcp-tools'
+import { McpTool } from '../lib/mcp-tools'
 import getScreen from './get-screen'
 import pressButton from './press-button'
 import runInputBatch from './run-input-batch'
