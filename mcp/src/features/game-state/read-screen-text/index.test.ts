@@ -19,31 +19,32 @@ describe('read-screen-text', () => {
   test.each([0, 1])(
     '日本版赤 revision %i のWRAMタイルを復号する',
     async (revision) => {
-    const tiles = new Uint8Array(360).fill(0x7f)
-    tiles[13 * 20 + 2] = 0xe5
-    tiles[14 * 20 + 2] = 0xb6
-    tiles[14 * 20 + 4] = 0xcd
-    tiles[16 * 20 + 1] = 0xb1
-    tiles[16 * 20 + 2] = 0x79
+      const tiles = new Uint8Array(360).fill(0x7f)
+      tiles[13 * 20 + 2] = 0xe5
+      tiles[14 * 20 + 2] = 0xb6
+      tiles[14 * 20 + 4] = 0xcd
+      tiles[16 * 20 + 1] = 0xb1
+      tiles[16 * 20 + 2] = 0x79
 
-    const readMemory = vi
-      .fn<ReadMemory>()
-      .mockResolvedValueOnce(makeHeader(revision))
-      .mockResolvedValueOnce(tiles)
-    const result = await createReadScreenText(readMemory)()
+      const readMemory = vi
+        .fn<ReadMemory>()
+        .mockResolvedValueOnce(makeHeader(revision))
+        .mockResolvedValueOnce(tiles)
+      const result = await createReadScreenText(readMemory)()
 
-    expect({
-      calls: readMemory.mock.calls,
-      lines: result?.lines,
-    }).toStrictEqual({
-      calls: [
-        [0x134, 28],
-        [0xc3a0, 360],
-      ],
-      lines: [
-        { 'y': 14, text: '  が へ'.padEnd(20, ' ') },
-        { 'y': 16, text: ' あ'.padEnd(20, ' ') },
-      ],
+      expect({
+        calls: readMemory.mock.calls,
+        lines: result?.lines,
+      }).toStrictEqual({
+        calls: [
+          [0x134, 28],
+          [0xc3a0, 360],
+        ],
+        lines: [
+          { 'y': 14, text: '  が へ'.padEnd(20, ' ') },
+          { 'y': 16, text: ' あ'.padEnd(20, ' ') },
+        ],
+      })
     },
   )
 
