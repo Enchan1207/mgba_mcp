@@ -213,57 +213,137 @@ const glyphs: Record<number, string> = {
 }
 
 const dakuten: Record<string, string> = {
-  か: 'が', き: 'ぎ', く: 'ぐ', け: 'げ', こ: 'ご',
-  さ: 'ざ', し: 'じ', す: 'ず', せ: 'ぜ', そ: 'ぞ',
-  た: 'だ', ち: 'ぢ', つ: 'づ', て: 'で', と: 'ど',
-  は: 'ば', ひ: 'び', ふ: 'ぶ', へ: 'べ', ほ: 'ぼ',
-  カ: 'ガ', キ: 'ギ', ク: 'グ', ケ: 'ゲ', コ: 'ゴ',
-  サ: 'ザ', シ: 'ジ', ス: 'ズ', セ: 'ゼ', ソ: 'ゾ',
-  タ: 'ダ', チ: 'ヂ', ツ: 'ヅ', テ: 'デ', ト: 'ド',
-  ハ: 'バ', ヒ: 'ビ', フ: 'ブ', ヘ: 'ベ', ホ: 'ボ',
+  'か': 'が',
+  'き': 'ぎ',
+  'く': 'ぐ',
+  'け': 'げ',
+  'こ': 'ご',
+  'さ': 'ざ',
+  'し': 'じ',
+  'す': 'ず',
+  'せ': 'ぜ',
+  'そ': 'ぞ',
+  'た': 'だ',
+  'ち': 'ぢ',
+  'つ': 'づ',
+  'て': 'で',
+  'と': 'ど',
+  'は': 'ば',
+  'ひ': 'び',
+  'ふ': 'ぶ',
+  'へ': 'べ',
+  'ほ': 'ぼ',
+  'カ': 'ガ',
+  'キ': 'ギ',
+  'ク': 'グ',
+  'ケ': 'ゲ',
+  'コ': 'ゴ',
+  'サ': 'ザ',
+  'シ': 'ジ',
+  'ス': 'ズ',
+  'セ': 'ゼ',
+  'ソ': 'ゾ',
+  'タ': 'ダ',
+  'チ': 'ヂ',
+  'ツ': 'ヅ',
+  'テ': 'デ',
+  'ト': 'ド',
+  'ハ': 'バ',
+  'ヒ': 'ビ',
+  'フ': 'ブ',
+  'ヘ': 'ベ',
+  'ホ': 'ボ',
 }
 
 const handakuten: Record<string, string> = {
-  は: 'ぱ', ひ: 'ぴ', ふ: 'ぷ', へ: 'ぺ', ほ: 'ぽ',
-  ハ: 'パ', ヒ: 'ピ', フ: 'プ', ヘ: 'ペ', ホ: 'ポ',
+  'は': 'ぱ',
+  'ひ': 'ぴ',
+  'ふ': 'ぷ',
+  'へ': 'ぺ',
+  'ほ': 'ぽ',
+  'ハ': 'パ',
+  'ヒ': 'ピ',
+  'フ': 'プ',
+  'ヘ': 'ペ',
+  'ホ': 'ポ',
 }
 
 const isSupportedRom = (header: Uint8Array): boolean => {
-  if (header.length !== HEADER_LENGTH) throw new Error('ROMヘッダの長さが不正です')
+  if (header.length !== HEADER_LENGTH) {
+    throw new Error('ROMヘッダの長さが不正です')
+  }
+
   const title = Buffer.from(header.subarray(0, 16))
-  if (title.subarray(0, 11).toString('ascii') !== 'POKEMON RED' ||
-      !title.subarray(11).every((value) => value === 0)) return false
+  if (
+    title.subarray(0, 11).toString('ascii') !== 'POKEMON RED' ||
+    !title.subarray(11).every((value) => value === 0)
+  ) {
+    return false
+  }
+
   const region = header[0x14a - HEADER_START]
   const version = header[0x14c - HEADER_START]
-  if (region !== 0 || (version !== 0 && version !== 1)) return false
+  if (region !== 0 || (version !== 0 && version !== 1)) {
+    return false
+  }
+
   let checksum = 0
-  for (let i = 0; i <= 0x14c - HEADER_START; i += 1) {
-    checksum = (checksum - (header[i] ?? 0) - 1) & 0xff
+  for (
+    let index = 0;
+    index <= 0x14c - HEADER_START;
+    index += 1
+  ) {
+    checksum = (checksum - (header[index] ?? 0) - 1 + 256) % 256
   }
   return checksum === header[0x14d - HEADER_START]
 }
 
 const decodeTileMap = (tiles: Uint8Array): ScreenTextData => {
-  if (tiles.length !== WIDTH * HEIGHT) throw new Error('画面タイル配列の長さが不正です')
-  const grid = Array.from({ length: HEIGHT }, (_, y) =>
-    Array.from({ length: WIDTH }, (_, x) => glyphs[tiles[y * WIDTH + x] ?? -1] ?? ' '),
+  if (tiles.length !== WIDTH * HEIGHT) {
+    throw new Error('画面タイル配列の長さが不正です')
+  }
+
+  const grid = Array.from({ length: HEIGHT }, (_, rowIndex) =>
+    Array.from(
+      { length: WIDTH },
+      (_, columnIndex) =>
+        glyphs[tiles[rowIndex * WIDTH + columnIndex] ?? -1] ?? ' ',
+    ),
   )
-  for (let y = 0; y < HEIGHT - 1; y += 1) {
-    for (let x = 0; x < WIDTH; x += 1) {
-      const tile = tiles[y * WIDTH + x]
-      const map = tile === 0xe5 ? dakuten : tile === 0xe4 ? handakuten : undefined
-      if (map === undefined) continue
-      const next = grid[y + 1]?.[x] ?? ' '
-      const combined = map[next]
-      if (combined === undefined) continue
-      grid[y + 1]![x] = combined
-      grid[y]![x] = ' '
+
+  for (let rowIndex = 0; rowIndex < HEIGHT - 1; rowIndex += 1) {
+    for (let columnIndex = 0; columnIndex < WIDTH; columnIndex += 1) {
+      const tile = tiles[rowIndex * WIDTH + columnIndex]
+      let map: Record<string, string> | undefined
+      if (tile === 0xe5) {
+        map = dakuten
+      } else if (tile === 0xe4) {
+        map = handakuten
+      }
+      if (map === undefined) {
+        continue
+      }
+
+      const lowerRow = grid[rowIndex + 1]
+      const upperRow = grid[rowIndex]
+      if (lowerRow === undefined || upperRow === undefined) {
+        continue
+      }
+      const base = lowerRow[columnIndex] ?? ' '
+      const combined = map[base]
+      if (combined === undefined) {
+        continue
+      }
+
+      lowerRow[columnIndex] = combined
+      upperRow[columnIndex] = ' '
     }
   }
+
   return {
-    lines: grid.flatMap((row, y) => {
+    lines: grid.flatMap((row, rowIndex) => {
       const text = row.join('')
-      return text.trim().length === 0 ? [] : [{ y, text }]
+      return text.trim().length === 0 ? [] : [{ y: rowIndex, text }]
     }),
   }
 }
@@ -272,7 +352,9 @@ export const createReadScreenText =
   (readMemory: ReadMemory): (() => Promise<ScreenTextData | undefined>) =>
   async () => {
     const header = await readMemory(HEADER_START, HEADER_LENGTH)
-    if (!isSupportedRom(header)) return undefined
+    if (!isSupportedRom(header)) {
+      return undefined
+    }
     const tiles = await readMemory(TILE_MAP_START, WIDTH * HEIGHT)
     return decodeTileMap(tiles)
   }
