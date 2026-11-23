@@ -1,6 +1,10 @@
 // oxlint-disable no-bitwise, id-length -- packed binary formats and map coordinate keys
 import { decodeJapaneseGlyph } from '../read-screen-text'
 
+import itemNames from './data/items.json'
+import moveNames from './data/moves.json'
+import speciesNames from './data/species.json'
+
 // Japanese Pokémon Red (v1.0/v1.1) WRAM state readers.
 // Address reference: https://flag3.github.io/blog/posts/ram-writer-in-pokemon-gen-1-en/
 export type ReadMemory = (
@@ -68,37 +72,19 @@ export const decodeBcd = (bytes: Uint8Array) => {
   return value
 }
 
-// Gen I internal species IDs are not Pokédex order. '-' is MissingNo.
-const speciesNames =
-  `Rhydon|Kangaskhan|Nidoran♂|Clefairy|Spearow|Voltorb|Nidoking|Slowbro|Ivysaur|Exeggutor|Lickitung|Exeggcute|Grimer|Gengar|Nidoran♀|Nidoqueen|Cubone|Rhyhorn|Lapras|Arcanine|Mew|Gyarados|Shellder|Tentacool|Gastly|Scyther|Staryu|Blastoise|Pinsir|Tangela|-|-|Growlithe|Onix|Fearow|Pidgey|Slowpoke|Kadabra|Graveler|Chansey|Machoke|Mr. Mime|Hitmonlee|Hitmonchan|Arbok|Parasect|Psyduck|Drowzee|Golem|-|Magmar|-|Electabuzz|Magneton|Koffing|-|Mankey|Seel|Diglett|Tauros|-|-|-|Farfetch'd|Venonat|Dragonite|-|-|-|Doduo|Poliwag|Jynx|Moltres|Articuno|Zapdos|Ditto|Meowth|Krabby|-|-|-|Vulpix|Ninetales|Pikachu|Raichu|-|-|Dratini|Dragonair|Kabuto|Kabutops|Horsea|Seadra|-|-|Sandshrew|Sandslash|Omanyte|Omastar|Jigglypuff|Wigglytuff|Eevee|Flareon|Jolteon|Vaporeon|Machop|Zubat|Ekans|Paras|Poliwhirl|Poliwrath|Weedle|Kakuna|Beedrill|-|Dodrio|Primeape|Dugtrio|Venomoth|Dewgong|-|-|Caterpie|Metapod|Butterfree|Machamp|-|Golduck|Hypno|Golbat|Mewtwo|Snorlax|Magikarp|-|-|Muk|-|Kingler|Cloyster|-|Electrode|Clefable|Weezing|Persian|Marowak|-|Haunter|Abra|Alakazam|Pidgeotto|Pidgeot|Starmie|Bulbasaur|Venusaur|Tentacruel|-|Goldeen|Seaking|-|-|-|-|Ponyta|Rapidash|Rattata|Raticate|Nidorino|Nidorina|Geodude|Porygon|Aerodactyl|-|Magnemite|-|-|Charmander|Squirtle|Charmeleon|Wartortle|Charizard|-|-|-|-|Oddish|Gloom|Vileplume|Bellsprout|Weepinbell|Victreebel`.split(
-    '|',
-  )
+// Japanese Red uses internal species IDs, not National Pokédex numbers.
+// Unknown IDs (including MissingNo.) have no localized name.
+const lookupName = (table: Record<string, string>, id: number): string | null =>
+  Object.hasOwn(table, id) ? (table[String(id)] ?? null) : null
+
 export const speciesName = (id: number): string | null =>
-  speciesNames[id - 1] === undefined || speciesNames[id - 1] === '-'
-    ? null
-    : (speciesNames[id - 1] ?? null)
+  lookupName(speciesNames, id)
 
-// IDs 1..165 are the canonical Generation I move indices.
-const moveNames =
-  `Pound|Karate Chop|Double Slap|Comet Punch|Mega Punch|Pay Day|Fire Punch|Ice Punch|Thunder Punch|Scratch|Vice Grip|Guillotine|Razor Wind|Swords Dance|Cut|Gust|Wing Attack|Whirlwind|Fly|Bind|Slam|Vine Whip|Stomp|Double Kick|Mega Kick|Jump Kick|Rolling Kick|Sand Attack|Headbutt|Horn Attack|Fury Attack|Horn Drill|Tackle|Body Slam|Wrap|Take Down|Thrash|Double-Edge|Tail Whip|Poison Sting|Twineedle|Pin Missile|Leer|Bite|Growl|Roar|Sing|Supersonic|Sonic Boom|Disable|Acid|Ember|Flamethrower|Mist|Water Gun|Hydro Pump|Surf|Ice Beam|Blizzard|Psybeam|Bubble Beam|Aurora Beam|Hyper Beam|Peck|Drill Peck|Submission|Low Kick|Counter|Seismic Toss|Strength|Absorb|Mega Drain|Leech Seed|Growth|Razor Leaf|Solar Beam|Poison Powder|Stun Spore|Sleep Powder|Petal Dance|String Shot|Dragon Rage|Fire Spin|Thunder Shock|Thunderbolt|Thunder Wave|Thunder|Rock Throw|Earthquake|Fissure|Dig|Toxic|Confusion|Psychic|Hypnosis|Meditate|Agility|Quick Attack|Rage|Teleport|Night Shade|Mimic|Screech|Double Team|Recover|Harden|Minimize|Smokescreen|Confuse Ray|Withdraw|Defense Curl|Barrier|Light Screen|Haze|Reflect|Focus Energy|Bide|Metronome|Mirror Move|Self-Destruct|Egg Bomb|Lick|Smog|Sludge|Bone Club|Fire Blast|Waterfall|Clamp|Swift|Skull Bash|Spike Cannon|Constrict|Amnesia|Kinesis|Soft-Boiled|High Jump Kick|Glare|Dream Eater|Poison Gas|Barrage|Leech Life|Lovely Kiss|Sky Attack|Transform|Bubble|Dizzy Punch|Spore|Flash|Psywave|Splash|Acid Armor|Crabhammer|Explosion|Fury Swipes|Bonemerang|Rest|Rock Slide|Hyper Fang|Sharpen|Conversion|Tri Attack|Super Fang|Slash|Substitute|Struggle`.split(
-    '|',
-  )
 export const moveName = (id: number): string | null =>
-  id >= 1 && id <= 165 ? (moveNames[id - 1] ?? null) : null
+  lookupName(moveNames, id)
 
-const itemNames =
-  `Master Ball|Ultra Ball|Great Ball|Poké Ball|Town Map|Bicycle|Surfboard|Safari Ball|Pokédex|Moon Stone|Antidote|Burn Heal|Ice Heal|Awakening|Parlyz Heal|Full Restore|Max Potion|Hyper Potion|Super Potion|Potion|BoulderBadge|CascadeBadge|ThunderBadge|RainbowBadge|SoulBadge|MarshBadge|VolcanoBadge|EarthBadge|Escape Rope|Repel|Old Amber|Fire Stone|Thunder Stone|Water Stone|HP Up|Protein|Iron|Carbos|Calcium|Rare Candy|Dome Fossil|Helix Fossil|Secret Key`.split(
-    '|',
-  )
-export const itemName = (id: number): string | null => {
-  if (id >= 0xc4 && id <= 0xc8) {
-    return `HM${String(id - 0xc3).padStart(2, '0')}`
-  }
-  if (id >= 0xc9 && id <= 0xfa) {
-    return `TM${String(id - 0xc8).padStart(2, '0')}`
-  }
-  return itemNames[id - 1] ?? null
-}
+export const itemName = (id: number): string | null =>
+  lookupName(itemNames, id)
 
 export const readPlayerState = async (read: ReadMemory) => {
   if (!(await supported(read))) {
