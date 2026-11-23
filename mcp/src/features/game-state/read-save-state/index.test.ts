@@ -1,3 +1,4 @@
+// oxlint-disable id-length -- Map coordinate keys follow the MCP schema
 import { describe, expect, test, vi } from 'vitest'
 
 import type { ReadMemory } from '.'
@@ -25,24 +26,29 @@ const header = (revision = 0) => {
 }
 
 const fixture = (memory: Map<number, Uint8Array>): ReadMemory =>
-  vi.fn(async (address, length) => {
-    if (address === 0x134) return header()
+  vi.fn<ReadMemory>((address, length) => {
+    if (address === 0x134) { return Promise.resolve(header()) }
     const bytes = memory.get(address)
-    if (!bytes) throw new Error(`unexpected READ ${address.toString(16)}`)
-    return bytes.subarray(0, length)
+    if (!bytes) { return Promise.reject(new Error(`unexpected READ ${address.toString(16)}`)) }
+    return Promise.resolve(bytes.subarray(0, length))
   })
 
 describe('Japanese Pokémon Red state decoding', () => {
-  test('BCDと文字列、既知・未知のID', () => {
-    expect(decodeBcd(Uint8Array.of(0x12, 0x34, 0x56))).toBe(123456)
+  test.each([
+    ['valid BCD', () => decodeBcd(Uint8Array.of(0x12, 0x34, 0x56)), 123456],
+    ['Japanese name', () => decodeName(Uint8Array.of(0x80, 0xb1, 0x50, 0x80)), 'アあ'],
+    ['Mew species', () => speciesName(0x15), 'Mew'],
+    ['unknown species', () => speciesName(0), null],
+    ['Tackle move', () => moveName(0x21), 'Tackle'],
+    ['unknown move', () => moveName(255), null],
+    ['rare candy', () => itemName(0x28), 'Rare Candy'],
+    ['HM01', () => itemName(0xc4), 'HM01'],
+  ] as const)('%s', (_description, decode, expected) => {
+    expect(decode()).toBe(expected)
+  })
+
+  test('不正なBCDを拒否する', () => {
     expect(() => decodeBcd(Uint8Array.of(0xfa))).toThrow('BCD')
-    expect(decodeName(Uint8Array.of(0x80, 0xb1, 0x50, 0x80))).toBe('アあ')
-    expect(speciesName(0x15)).toBe('Mew')
-    expect(speciesName(0)).toBeNull()
-    expect(moveName(0x21)).toBe('Tackle')
-    expect(moveName(255)).toBeNull()
-    expect(itemName(0x28)).toBe('Rare Candy')
-    expect(itemName(0xc4)).toBe('HM01')
   })
 
   test('プレイヤー: 座標、所持金、バッジ', async () => {
@@ -52,7 +58,7 @@ describe('Japanese Pokémon Red state decoding', () => {
       [0xd2cb, Uint8Array.of(0x01, 0x23, 0x45)],
       [0xd2d5, Uint8Array.of(0x81)],
     ]))
-    expect(await readPlayerState(read)).toEqual({
+    await expect(readPlayerState(read)).resolves.toStrictEqual({
       name: 'アあ', mapId: 3, x: 9, y: 7, money: 12345,
       badges: [true, false, false, false, false, false, false, true],
     })
@@ -71,7 +77,7 @@ describe('Japanese Pokémon Red state decoding', () => {
       [0xd12b, entry],
       [0xd257, Uint8Array.of(0x80, 0x50, 0, 0, 0, 0)],
     ]))
-    expect(await readPartyState(read)).toEqual({
+    await expect(readPartyState(read)).resolves.toStrictEqual({
       pokemon: [{
         position: 0, speciesId: 0x15, species: 'Mew', nickname: 'ア',
         level: 7, hp: 23, maxHp: 29, status: 0,
@@ -86,7 +92,7 @@ describe('Japanese Pokémon Red state decoding', () => {
       [0xd2a1, Uint8Array.of(2)],
       [0xd2a2, Uint8Array.of(0x28, 9, 0x04, 5, 0xff)],
     ]))
-    expect(await readBagState(read)).toEqual({
+    await expect(readBagState(read)).resolves.toStrictEqual({
       items: [
         { position: 0, id: 40, name: 'Rare Candy', quantity: 9 },
         { position: 1, id: 4, name: 'Poké Ball', quantity: 5 },
@@ -94,24 +100,29 @@ describe('Japanese Pokémon Red state decoding', () => {
     })
   })
 
-  test('空の手持ち・バッグ', async () => {
+  test('空の手持ちとバッグ', async () => {
     const read = fixture(new Map([
       [0xd123, Uint8Array.of(0, 0xff, 0, 0, 0, 0, 0, 0)],
       [0xd2a1, Uint8Array.of(0)],
     ]))
-    expect((await readPartyState(read))?.pokemon).toEqual([])
-    expect(await readBagState(read)).toEqual({ items: [] })
+    await expect(Promise.all([readPartyState(read), readBagState(read)])).resolves.toStrictEqual([
+      { pokemon: [], warning: '戦闘中のHP・PPは手持ち領域に未反映の場合があります' },
+      { items: [] },
+    ])
   })
 
-  test('未対応ROM、破損、通信エラーを区別する', async () => {
-    const unsupported: ReadMemory = vi.fn(async () => new Uint8Array(28))
-    expect(await readPlayerState(unsupported)).toBeNull()
-    expect(unsupported).toHaveBeenCalledTimes(1)
+  test('未対応ROMでは状態を読まない', async () => {
+    const unsupported = vi.fn<ReadMemory>(() => Promise.resolve(new Uint8Array(28)))
+    await expect(readPlayerState(unsupported)).resolves.toBeNull()
+  })
 
+  test('破損したバッグを拒否する', async () => {
     const corrupt = fixture(new Map([[0xd2a1, Uint8Array.of(21)]]))
     await expect(readBagState(corrupt)).rejects.toThrow('バッグの道具数')
+  })
 
-    const fail: ReadMemory = vi.fn(async () => { throw new Error('socket closed') })
-    await expect(readPlayerState(fail)).rejects.toThrow('socket closed')
+  test('通信エラーは伝播する', async () => {
+    const failure = vi.fn<ReadMemory>(() => Promise.reject(new Error('socket closed')))
+    await expect(readPlayerState(failure)).rejects.toThrow('socket closed')
   })
 })
