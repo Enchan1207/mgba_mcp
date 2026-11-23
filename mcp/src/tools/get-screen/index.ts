@@ -65,7 +65,9 @@ const tool = new McpTool<{ Bindings: Bindings }>().register('get_screen', {
       const { capture, framesAdvanced } = await captureScreen(client)
       const png = await encodePng(capture)
       const screenText = await createReadScreenText(async (address, length) => {
-        const response = await Result.unwrap(client.send({ verb: 'read', args: [address, length] }))
+        const response = await Result.unwrap(
+          client.send({ verb: 'read', args: [address, length] }),
+        )
         return response.memorySnapshot
       })()
       const result = { framesAdvanced, totalFrames: capture.frames }
@@ -73,11 +75,18 @@ const tool = new McpTool<{ Bindings: Bindings }>().register('get_screen', {
       return {
         content: [
           { type: 'text' as const, text: JSON.stringify(result) },
-          ...(screenText === undefined ? [] : [{
-            type: 'text' as const,
-            text: 'Screen text (tile coordinates, y is 0-based):\\n' +
-              screenText.lines.map(({ y, text }) => `y=${y}: ${JSON.stringify(text)}`).join('\\n'),
-          }]),
+          ...(screenText === undefined
+            ? []
+            : [
+                {
+                  type: 'text' as const,
+                  text:
+                    'Screen text (tile coordinates, y is 0-based):\n' +
+                    screenText.lines
+                      .map(({ y, text }) => `y=${y}: ${JSON.stringify(text)}`)
+                      .join('\n'),
+                },
+              ]),
           {
             type: 'image' as const,
             data: png.toString('base64'),
