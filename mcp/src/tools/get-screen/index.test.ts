@@ -47,7 +47,10 @@ describe('get_screenで画面がある場合', () => {
   })
 
   test('現在の画面だけを取得する', () => {
-    expect(commands).toStrictEqual([{ verb: 'capture' }, { verb: 'read', args: [0x134, 28] }])
+    expect(commands).toStrictEqual([
+      { verb: 'capture' },
+      { verb: 'read', args: [0x134, 28] },
+    ])
   })
 
   test('フレーム数を返す', () => {
