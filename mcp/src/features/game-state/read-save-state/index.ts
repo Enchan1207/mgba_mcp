@@ -79,11 +79,9 @@ const lookupName = (table: Record<string, string>, id: number): string | null =>
 export const speciesName = (id: number): string | null =>
   lookupName(speciesNames, id)
 
-export const moveName = (id: number): string | null =>
-  lookupName(moveNames, id)
+export const moveName = (id: number): string | null => lookupName(moveNames, id)
 
-export const itemName = (id: number): string | null =>
-  lookupName(itemNames, id)
+export const itemName = (id: number): string | null => lookupName(itemNames, id)
 
 export const readPlayerState = async (read: ReadMemory) => {
   if (!(await supported(read))) {
