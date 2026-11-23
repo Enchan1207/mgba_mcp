@@ -216,6 +216,9 @@ const glyphs: Record<number, string> = {
   0xff: '９',
 }
 
+export const decodeJapaneseGlyph = (byte: number): string | undefined =>
+  glyphs[byte]
+
 const dakuten: Record<string, string> = {
   か: 'が',
   き: 'ぎ',
