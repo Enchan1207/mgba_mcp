@@ -84,7 +84,7 @@ const glyphs: Record<number, string> = {
   0x76: "ぁ",
   0x77: "ぇ",
   0x78: "ぉ",
-  0x7f: "　",
+  0x7f: ' ',
   0x80: "ア",
   0x81: "イ",
   0x82: "ウ",
