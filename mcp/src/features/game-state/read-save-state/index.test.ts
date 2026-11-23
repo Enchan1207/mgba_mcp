@@ -47,12 +47,16 @@ describe('Japanese Pokémon Red state decoding', () => {
       () => decodeName(Uint8Array.of(0x80, 0xb1, 0x50, 0x80)),
       'アあ',
     ],
-    ['Mew species', () => speciesName(0x15), 'Mew'],
+    ['Mew species', () => speciesName(0x15), 'ミュウ'],
     ['unknown species', () => speciesName(0), null],
-    ['Tackle move', () => moveName(0x21), 'Tackle'],
+    ['Tackle move', () => moveName(0x21), 'たいあたり'],
     ['unknown move', () => moveName(255), null],
-    ['rare candy', () => itemName(0x28), 'Rare Candy'],
-    ['HM01', () => itemName(0xc4), 'HM01'],
+    ['rare candy', () => itemName(0x28), 'ふしぎなアメ'],
+    ['HM01', () => itemName(0xc4), 'ひでんマシン０１']
+    , ['TM50', () => itemName(0xfa), 'わざマシン５０']
+    , ['unused species', () => speciesName(0x1f), null]
+    , ['unused item', () => itemName(0x2c), null]
+    , ['other HM', () => itemName(0xc8), 'ひでんマシン０５'],
   ] as const)('%s', (_description, decode, expected) => {
     expect(decode()).toBe(expected)
   })
@@ -100,13 +104,13 @@ describe('Japanese Pokémon Red state decoding', () => {
         {
           position: 0,
           speciesId: 0x15,
-          species: 'Mew',
+          species: 'ミュウ',
           nickname: 'ア',
           level: 7,
           hp: 23,
           maxHp: 29,
           status: 0,
-          moves: [{ id: 33, name: 'Tackle', pp: 10, ppUps: 1 }],
+          moves: [{ id: 33, name: 'たいあたり', pp: 10, ppUps: 1 }],
         },
       ],
       warning: '戦闘中のHP・PPは手持ち領域に未反映の場合があります',
@@ -122,8 +126,8 @@ describe('Japanese Pokémon Red state decoding', () => {
     )
     await expect(readBagState(read)).resolves.toStrictEqual({
       items: [
-        { position: 0, id: 40, name: 'Rare Candy', quantity: 9 },
-        { position: 1, id: 4, name: 'Poké Ball', quantity: 5 },
+        { position: 0, id: 40, name: 'ふしぎなアメ', quantity: 9 },
+        { position: 1, id: 4, name: 'モンスターボール', quantity: 5 },
       ],
     })
   })
