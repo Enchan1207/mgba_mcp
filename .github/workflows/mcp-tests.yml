@@ -36,6 +36,4 @@ jobs:
       - run: pnpm test
       - run: pnpm run build
       - run: pnpm run lint
-      - run: |
-          pnpm fmt
-          git diff -- src/features/game-state/read-screen-text/index.ts src/features/game-state/read-screen-text/index.test.ts src/tools/get-screen/index.test.ts
+      - run: pnpm fmt --check
