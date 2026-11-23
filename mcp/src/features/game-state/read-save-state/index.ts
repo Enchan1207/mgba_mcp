@@ -1,6 +1,5 @@
 // oxlint-disable no-bitwise, id-length -- packed binary formats and map coordinate keys
 import { decodeJapaneseGlyph } from '../read-screen-text'
-
 import itemNames from './data/items.json'
 import moveNames from './data/moves.json'
 import speciesNames from './data/species.json'
