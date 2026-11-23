@@ -268,6 +268,11 @@ const handakuten: Record<string, string> = {
   'ホ': 'ポ',
 }
 
+const diacritics: Record<number, Record<string, string>> = {
+  0xe4: handakuten,
+  0xe5: dakuten,
+}
+
 const isSupportedRom = (header: Uint8Array): boolean => {
   if (header.length !== HEADER_LENGTH) {
     throw new Error('ROMヘッダの長さが不正です')
@@ -314,12 +319,7 @@ const decodeTileMap = (tiles: Uint8Array): ScreenTextData => {
   for (let rowIndex = 0; rowIndex < HEIGHT - 1; rowIndex += 1) {
     for (let columnIndex = 0; columnIndex < WIDTH; columnIndex += 1) {
       const tile = tiles[rowIndex * WIDTH + columnIndex]
-      let map: Record<string, string> | undefined
-      if (tile === 0xe5) {
-        map = dakuten
-      } else if (tile === 0xe4) {
-        map = handakuten
-      }
+      const map = diacritics[tile ?? -1]
       if (map === undefined) {
         continue
       }
@@ -343,7 +343,7 @@ const decodeTileMap = (tiles: Uint8Array): ScreenTextData => {
   return {
     lines: grid.flatMap((row, rowIndex) => {
       const text = row.join('')
-      return text.trim().length === 0 ? [] : [{ y: rowIndex, text }]
+      return text.trim().length === 0 ? [] : [{ 'y': rowIndex, text }]
     }),
   }
 }
