@@ -52,11 +52,11 @@ describe('Japanese Pokémon Red state decoding', () => {
     ['Tackle move', () => moveName(0x21), 'たいあたり'],
     ['unknown move', () => moveName(255), null],
     ['rare candy', () => itemName(0x28), 'ふしぎなアメ'],
-    ['HM01', () => itemName(0xc4), 'ひでんマシン０１']
-    , ['TM50', () => itemName(0xfa), 'わざマシン５０']
-    , ['unused species', () => speciesName(0x1f), null]
-    , ['unused item', () => itemName(0x2c), null]
-    , ['other HM', () => itemName(0xc8), 'ひでんマシン０５'],
+    ['HM01', () => itemName(0xc4), 'ひでんマシン０１'],
+    ['TM50', () => itemName(0xfa), 'わざマシン５０'],
+    ['unused species', () => speciesName(0x1f), null],
+    ['unused item', () => itemName(0x2c), null],
+    ['other HM', () => itemName(0xc8), 'ひでんマシン０５'],
   ] as const)('%s', (_description, decode, expected) => {
     expect(decode()).toBe(expected)
   })
