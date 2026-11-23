@@ -22,7 +22,9 @@ const supported = async (read: ReadMemory) => {
   if (title.subarray(0, 11).toString('ascii') !== 'POKEMON RED' ||
       !title.subarray(11).every((value) => value === 0) ||
       header[0x14a - HEADER] !== 0 ||
-      ![0, 1].includes(header[0x14c - HEADER] ?? -1)) return false
+      ![0, 1].includes(header[0x14c - HEADER] ?? -1)) {
+    return false
+  }
   let checksum = 0
   for (let index = 0; index <= 0x14c - HEADER; index += 1) {
     checksum = (checksum - (header[index] ?? 0) - 1 + 256) % 256
@@ -96,20 +98,20 @@ export const readPartyState = async (read: ReadMemory) => {
     readExact(read, 0xd12b, count * 44),
     readExact(read, 0xd257, count * 6),
   ])
-  const pokemon = Array.from({ length: count }, (_, index) => {
+  const pokemon = Array.from({ length: count }, (_unused, index) => {
     const mon = entries.subarray(index * 44, (index + 1) * 44)
     const speciesId = mon[0] ?? 0
     if (speciesId !== heading[index + 1]) { throw new Error('手持ち種族IDが一致しません') }
     const moves = Array.from({ length: 4 }, (_unused, slot) => {
       const moveId = mon[8 + slot] ?? 0
       if (moveId === 0) { return null }
-      return { id: moveId, name: moveName(moveId), pp: (mon[29 + slot] ?? 0) & 0x3f, ppUps: mon[29 + slot]! >>> 6 }
+      return { id: moveId, name: moveName(moveId), pp: (mon[29 + slot] ?? 0) & 0x3f, ppUps: (mon[29 + slot] ?? 0) >>> 6 }
     }).filter((move) => move !== null)
     const hp = u16(mon, 1), maxHp = u16(mon, 34)
     return {
       position: index, speciesId, species: speciesName(speciesId),
       nickname: decodeName(nicknames.subarray(index * 6, (index + 1) * 6)),
-      level: mon[33] ?? 0, hp, maxHp, status: mon[4]!, moves,
+      level: mon[33] ?? 0, hp, maxHp, status: mon[4] ?? 0, moves,
     }
   })
   return { pokemon, warning: '戦闘中のHP・PPは手持ち領域に未反映の場合があります' }
