@@ -1,7 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 
-import { createReadScreenText } from '.'
-import type { ReadMemory } from '.'
+import { createReadScreenText, type ReadMemory } from '.'
 
 const makeHeader = (revision = 0): Uint8Array => {
   const bytes = new Uint8Array(28)
