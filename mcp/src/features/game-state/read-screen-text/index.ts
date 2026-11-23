@@ -1,7 +1,11 @@
+// oxlint-disable id-length -- Kana glyph keys and the screen row coordinate are single-character identifiers
 // Japanese Pokemon Red: screen text is a best-effort decoding of the WRAM tile map.
 // Character source: https://github.com/Narishma-gb/pokegreen/blob/master/constants/charmap.asm
-export type ReadMemory = (address: number, length: number) => Promise<Uint8Array>
-export type ScreenTextData = { lines: { 'y': number; text: string }[] }
+export type ReadMemory = (
+  address: number,
+  length: number,
+) => Promise<Uint8Array>
+export type ScreenTextData = { lines: { y: number; text: string }[] }
 
 const HEADER_START = 0x0134
 const HEADER_LENGTH = 28
@@ -213,59 +217,59 @@ const glyphs: Record<number, string> = {
 }
 
 const dakuten: Record<string, string> = {
-  'か': 'が',
-  'き': 'ぎ',
-  'く': 'ぐ',
-  'け': 'げ',
-  'こ': 'ご',
-  'さ': 'ざ',
-  'し': 'じ',
-  'す': 'ず',
-  'せ': 'ぜ',
-  'そ': 'ぞ',
-  'た': 'だ',
-  'ち': 'ぢ',
-  'つ': 'づ',
-  'て': 'で',
-  'と': 'ど',
-  'は': 'ば',
-  'ひ': 'び',
-  'ふ': 'ぶ',
-  'へ': 'べ',
-  'ほ': 'ぼ',
-  'カ': 'ガ',
-  'キ': 'ギ',
-  'ク': 'グ',
-  'ケ': 'ゲ',
-  'コ': 'ゴ',
-  'サ': 'ザ',
-  'シ': 'ジ',
-  'ス': 'ズ',
-  'セ': 'ゼ',
-  'ソ': 'ゾ',
-  'タ': 'ダ',
-  'チ': 'ヂ',
-  'ツ': 'ヅ',
-  'テ': 'デ',
-  'ト': 'ド',
-  'ハ': 'バ',
-  'ヒ': 'ビ',
-  'フ': 'ブ',
-  'ヘ': 'ベ',
-  'ホ': 'ボ',
+  か: 'が',
+  き: 'ぎ',
+  く: 'ぐ',
+  け: 'げ',
+  こ: 'ご',
+  さ: 'ざ',
+  し: 'じ',
+  す: 'ず',
+  せ: 'ぜ',
+  そ: 'ぞ',
+  た: 'だ',
+  ち: 'ぢ',
+  つ: 'づ',
+  て: 'で',
+  と: 'ど',
+  は: 'ば',
+  ひ: 'び',
+  ふ: 'ぶ',
+  へ: 'べ',
+  ほ: 'ぼ',
+  カ: 'ガ',
+  キ: 'ギ',
+  ク: 'グ',
+  ケ: 'ゲ',
+  コ: 'ゴ',
+  サ: 'ザ',
+  シ: 'ジ',
+  ス: 'ズ',
+  セ: 'ゼ',
+  ソ: 'ゾ',
+  タ: 'ダ',
+  チ: 'ヂ',
+  ツ: 'ヅ',
+  テ: 'デ',
+  ト: 'ド',
+  ハ: 'バ',
+  ヒ: 'ビ',
+  フ: 'ブ',
+  ヘ: 'ベ',
+  ホ: 'ボ',
 }
 
 const handakuten: Record<string, string> = {
-  'は': 'ぱ',
-  'ひ': 'ぴ',
-  'ふ': 'ぷ',
-  'へ': 'ぺ',
-  'ほ': 'ぽ',
-  'ハ': 'パ',
-  'ヒ': 'ピ',
-  'フ': 'プ',
-  'ヘ': 'ペ',
-  'ホ': 'ポ',
+  は: 'ぱ',
+  ひ: 'ぴ',
+  ふ: 'ぷ',
+  へ: 'ぺ',
+  ほ: 'ぽ',
+  ハ: 'パ',
+  ヒ: 'ピ',
+  フ: 'プ',
+  ヘ: 'ペ',
+  ホ: 'ポ',
 }
 
 const diacritics: Record<number, Record<string, string>> = {
@@ -339,7 +343,7 @@ const decodeTileMap = (tiles: Uint8Array): ScreenTextData => {
   return {
     lines: grid.flatMap((row, rowIndex) => {
       const text = row.join('')
-      return text.trim().length === 0 ? [] : [{ 'y': rowIndex, text }]
+      return text.trim().length === 0 ? [] : [{ y: rowIndex, text }]
     }),
   }
 }
