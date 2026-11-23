@@ -25,19 +25,28 @@ const header = (revision = 0) => {
   return bytes
 }
 
-const fixture = (memory: Map<number, Uint8Array>): ReadMemory =>
-  vi.fn<ReadMemory>((address, length) => {
-    if (address === 0x134) {
-      return Promise.resolve(header())
+const fixture = (memory: Map<number, Uint8Array>): ReadMemory => {
+  let reading = false
+  return vi.fn<ReadMemory>(async (address, length) => {
+    if (reading) {
+      throw new Error('READの同時実行')
     }
-    const bytes = memory.get(address)
-    if (!bytes) {
-      return Promise.reject(
-        new Error(`unexpected READ ${address.toString(16)}`),
-      )
+    reading = true
+    try {
+      await Promise.resolve()
+      if (address === 0x134) {
+        return header()
+      }
+      const bytes = memory.get(address)
+      if (!bytes) {
+        throw new Error(`unexpected READ ${address.toString(16)}`)
+      }
+      return bytes.subarray(0, length)
+    } finally {
+      reading = false
     }
-    return Promise.resolve(bytes.subarray(0, length))
   })
+}
 
 describe('Japanese Pokémon Red state decoding', () => {
   test.each([
@@ -139,9 +148,9 @@ describe('Japanese Pokémon Red state decoding', () => {
         [0xd2a1, Uint8Array.of(0)],
       ]),
     )
-    await expect(
-      Promise.all([readPartyState(read), readBagState(read)]),
-    ).resolves.toStrictEqual([
+    const party = await readPartyState(read)
+    const bag = await readBagState(read)
+    expect([party, bag]).toStrictEqual([
       {
         pokemon: [],
         warning: '戦闘中のHP・PPは手持ち領域に未反映の場合があります',

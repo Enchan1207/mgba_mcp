@@ -87,12 +87,10 @@ export const readPlayerState = async (read: ReadMemory) => {
   if (!(await supported(read))) {
     return null
   }
-  const [name, location, money, badges] = await Promise.all([
-    readExact(read, 0xd11d, 6),
-    readExact(read, 0xd2dd, 5),
-    readExact(read, 0xd2cb, 3),
-    readExact(read, 0xd2d5, 1),
-  ])
+  const name = await readExact(read, 0xd11d, 6)
+  const location = await readExact(read, 0xd2dd, 5)
+  const money = await readExact(read, 0xd2cb, 3)
+  const badges = await readExact(read, 0xd2d5, 1)
   const flags = badges[0] ?? 0
   return {
     name: decodeName(name),
@@ -125,10 +123,8 @@ export const readPartyState = async (read: ReadMemory) => {
       warning: '戦闘中のHP・PPは手持ち領域に未反映の場合があります',
     }
   }
-  const [entries, nicknames] = await Promise.all([
-    readExact(read, 0xd12b, count * 44),
-    readExact(read, 0xd257, count * 6),
-  ])
+  const entries = await readExact(read, 0xd12b, count * 44)
+  const nicknames = await readExact(read, 0xd257, count * 6)
   const pokemon = Array.from({ length: count }, (_unused, index) => {
     const mon = entries.subarray(index * 44, (index + 1) * 44)
     const speciesId = mon[0] ?? 0
