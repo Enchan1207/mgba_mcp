@@ -1,7 +1,7 @@
 // Japanese Pokemon Red: screen text is a best-effort decoding of the WRAM tile map.
 // Character source: https://github.com/Narishma-gb/pokegreen/blob/master/constants/charmap.asm
 export type ReadMemory = (address: number, length: number) => Promise<Uint8Array>
-export type ScreenTextData = { lines: { y: number; text: string }[] }
+export type ScreenTextData = { lines: { 'y': number; text: string }[] }
 
 const HEADER_START = 0x0134
 const HEADER_LENGTH = 28
@@ -303,10 +303,10 @@ const decodeTileMap = (tiles: Uint8Array): ScreenTextData => {
     throw new Error('画面タイル配列の長さが不正です')
   }
 
-  const grid = Array.from({ length: HEIGHT }, (_, rowIndex) =>
+  const grid = Array.from({ length: HEIGHT }, (_unusedRow, rowIndex) =>
     Array.from(
       { length: WIDTH },
-      (_, columnIndex) =>
+      (_unusedColumn, columnIndex) =>
         glyphs[tiles[rowIndex * WIDTH + columnIndex] ?? -1] ?? ' ',
     ),
   )
