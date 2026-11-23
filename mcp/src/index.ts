@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/server'
 import { serveStdio } from '@modelcontextprotocol/server/stdio'
-import tools from 'src/features/tools'
+import tools from 'src/tools'
 
 import { createMgbaClientRunner } from './external/mgba-client/run-with-client'
 import { McpTool } from './lib/mcp-tools'

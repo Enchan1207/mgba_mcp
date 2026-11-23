@@ -14,6 +14,9 @@ describe('get_screenで画面がある場合', () => {
   const client = {
     send: (command: MgbaServerCommand) => {
       commands.push(command)
+      if (command.verb === 'read') {
+        return Result.succeed({ memorySnapshot: Buffer.alloc(command.args[1]) })
+      }
       return Result.succeed({
         frames: 42,
         width: 160,
@@ -44,7 +47,7 @@ describe('get_screenで画面がある場合', () => {
   })
 
   test('現在の画面だけを取得する', () => {
-    expect(commands).toStrictEqual([{ verb: 'capture' }])
+    expect(commands).toStrictEqual([{ verb: 'capture' }, { verb: 'read', args: [0x134, 28] }])
   })
 
   test('フレーム数を返す', () => {
@@ -82,6 +85,9 @@ describe('get_screenで画面がない場合', () => {
           new CommandFailedError('画面がありません', { response: 'NO_FRAME' }),
         )
       }
+      if (command.verb === 'read') {
+        return Result.succeed({ memorySnapshot: Buffer.alloc(command.args[1]) })
+      }
       return Result.succeed({
         frames: 1,
         width: 160,
@@ -117,6 +123,7 @@ describe('get_screenで画面がない場合', () => {
       { verb: 'release', args: ['all'] },
       { verb: 'step', args: [1] },
       { verb: 'capture' },
+      { verb: 'read', args: [0x134, 28] },
     ])
   })
 

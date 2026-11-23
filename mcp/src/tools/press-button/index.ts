@@ -2,9 +2,9 @@ import { Result } from '@praha/byethrow'
 import type { RunWithMgbaClient } from 'src/external/mgba-client/run-with-client'
 import { z } from 'zod'
 
-import type { Button } from '../../../external/mgba-client/command'
-import { encodePng } from '../../../lib/image-encoder'
-import { McpTool } from '../../../lib/mcp-tools'
+import type { Button } from '../../external/mgba-client/command'
+import { encodePng } from '../../lib/image-encoder'
+import { McpTool } from '../../lib/mcp-tools'
 
 type Bindings = {
   'run-with-mgba-client': RunWithMgbaClient

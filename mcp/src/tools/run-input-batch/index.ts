@@ -4,8 +4,8 @@ import type { RunWithMgbaClient } from 'src/external/mgba-client/run-with-client
 import { match } from 'ts-pattern'
 import { z } from 'zod'
 
-import { encodePng } from '../../../lib/image-encoder'
-import { McpTool } from '../../../lib/mcp-tools'
+import { encodePng } from '../../lib/image-encoder'
+import { McpTool } from '../../lib/mcp-tools'
 
 type Bindings = {
   'run-with-mgba-client': RunWithMgbaClient

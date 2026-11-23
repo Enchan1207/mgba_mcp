@@ -4,8 +4,9 @@ import { CommandFailedError } from 'src/external/mgba-client/response/errors'
 import type { RunWithMgbaClient } from 'src/external/mgba-client/run-with-client'
 import { z } from 'zod'
 
-import { encodePng } from '../../../lib/image-encoder'
-import { McpTool } from '../../../lib/mcp-tools'
+import { createReadScreenText } from '../../features/game-state/read-screen-text'
+import { encodePng } from '../../lib/image-encoder'
+import { McpTool } from '../../lib/mcp-tools'
 
 type Bindings = {
   'run-with-mgba-client': RunWithMgbaClient
@@ -54,7 +55,7 @@ const captureScreen = async (client: MgbaClient) => {
 
 const tool = new McpTool<{ Bindings: Bindings }>().register('get_screen', {
   title: '画面を取得する',
-  description: '現在の画面をPNG画像で返す',
+  description: '現在の画面をPNG画像で返し、対応ROMでは文字情報を付加する',
   input: z.object({}),
   outputSchema: ToolOutputSchema,
   handler: (c) => {
@@ -63,11 +64,20 @@ const tool = new McpTool<{ Bindings: Bindings }>().register('get_screen', {
     return runWithMgbaClient(async (client) => {
       const { capture, framesAdvanced } = await captureScreen(client)
       const png = await encodePng(capture)
+      const screenText = await createReadScreenText(async (address, length) => {
+        const response = await Result.unwrap(client.send({ verb: 'read', args: [address, length] }))
+        return response.memorySnapshot
+      })()
       const result = { framesAdvanced, totalFrames: capture.frames }
 
       return {
         content: [
           { type: 'text' as const, text: JSON.stringify(result) },
+          ...(screenText === undefined ? [] : [{
+            type: 'text' as const,
+            text: 'Screen text (tile coordinates, y is 0-based):\\n' +
+              screenText.lines.map(({ y, text }) => `y=${y}: ${JSON.stringify(text)}`).join('\\n'),
+          }]),
           {
             type: 'image' as const,
             data: png.toString('base64'),
