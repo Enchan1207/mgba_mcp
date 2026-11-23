@@ -1,3 +1,5 @@
+import { decodeJapaneseGlyph } from '../read-screen-text'
+
 // Japanese Pokémon Red (v1.0/v1.1) WRAM state readers.
 // Address reference: https://flag3.github.io/blog/posts/ram-writer-in-pokemon-gen-1-en/
 export type ReadMemory = (address: number, length: number) => Promise<Uint8Array>
@@ -27,34 +29,11 @@ const supported = async (read: ReadMemory) => {
   return checksum === header[0x14d - HEADER]
 }
 
-const kana = [
-  'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフホマミムメモヤユヨラルレロワヲン',
-  'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん',
-]
-const charmap = new Map<number, string>()
-// Unlike the screen tilemap, stored Japanese name text uses the character indices directly.
-for (const [start, chars] of [[0x80, kana[0]], [0xb1, kana[1]]] as const) {
-  for (const [offset, char] of [...chars].entries()) charmap.set(start + offset, char)
-}
-for (const [value, char] of [
-  [0x05, 'ガ'], [0x06, 'ギ'], [0x07, 'グ'], [0x08, 'ゲ'], [0x09, 'ゴ'],
-  [0x0a, 'ザ'], [0x0b, 'ジ'], [0x0c, 'ズ'], [0x0d, 'ゼ'], [0x0e, 'ゾ'],
-  [0x0f, 'ダ'], [0x10, 'ヂ'], [0x11, 'ヅ'], [0x12, 'デ'], [0x13, 'ド'],
-  [0x19, 'バ'], [0x1a, 'ビ'], [0x1b, 'ブ'], [0x1c, 'ボ'],
-  [0x26, 'が'], [0x27, 'ぎ'], [0x28, 'ぐ'], [0x29, 'げ'], [0x2a, 'ご'],
-  [0x2b, 'ざ'], [0x2c, 'じ'], [0x2d, 'ず'], [0x2e, 'ぜ'], [0x2f, 'ぞ'],
-  [0x30, 'だ'], [0x31, 'ぢ'], [0x32, 'づ'], [0x33, 'で'], [0x34, 'ど'],
-  [0x3a, 'ば'], [0x3b, 'び'], [0x3c, 'ぶ'], [0x3d, 'べ'], [0x3e, 'ぼ'],
-  [0x40, 'パ'], [0x41, 'ピ'], [0x42, 'プ'], [0x43, 'ポ'],
-  [0x44, 'ぱ'], [0x45, 'ぴ'], [0x46, 'ぷ'], [0x47, 'ぺ'], [0x48, 'ぽ'],
-  [0xe3, 'ー'], [0xef, '♂'], [0xf5, '♀'],
-] as const) charmap.set(value, char)
-
 export const decodeName = (data: Uint8Array) => {
   const chars: string[] = []
   for (const byte of data) {
     if (byte === 0x50 || byte === 0x00) break
-    chars.push(charmap.get(byte) ?? `\\x${byte.toString(16).padStart(2, '0')}`)
+    chars.push(decodeJapaneseGlyph(byte) ?? `\\x${byte.toString(16).padStart(2, '0')}`)
   }
   return chars.join('')
 }
