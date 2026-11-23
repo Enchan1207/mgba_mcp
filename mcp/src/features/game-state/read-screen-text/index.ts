@@ -293,11 +293,7 @@ const isSupportedRom = (header: Uint8Array): boolean => {
   }
 
   let checksum = 0
-  for (
-    let index = 0;
-    index <= 0x14c - HEADER_START;
-    index += 1
-  ) {
+  for (let index = 0; index <= 0x14c - HEADER_START; index += 1) {
     checksum = (checksum - (header[index] ?? 0) - 1 + 256) % 256
   }
   return checksum === header[0x14d - HEADER_START]
