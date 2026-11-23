@@ -1,14 +1,14 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 
 import { createReadScreenText } from '.'
 
-const header = (revision = 0): Uint8Array => {
+const makeHeader = (revision = 0): Uint8Array => {
   const bytes = new Uint8Array(28)
   bytes.set(Buffer.from('POKEMON RED', 'ascii'))
   bytes[0x14c - 0x134] = revision
   let checksum = 0
-  for (let i = 0; i <= 0x14c - 0x134; i += 1) {
-    checksum = (checksum - (bytes[i] ?? 0) - 1) & 0xff
+  for (let index = 0; index <= 0x14c - 0x134; index += 1) {
+    checksum = (checksum - (bytes[index] ?? 0) - 1 + 256) % 256
   }
   bytes[0x14d - 0x134] = checksum
   return bytes
@@ -16,23 +16,32 @@ const header = (revision = 0): Uint8Array => {
 
 describe('read-screen-text', () => {
   test.each([0, 1])('日本版赤 revision %i のWRAMタイルを復号する', async (revision) => {
-    const calls: [number, number][] = []
     const tiles = new Uint8Array(360).fill(0x7f)
-    tiles[13 * 20 + 2] = 0xe5 // dakuten above か
+    tiles[13 * 20 + 2] = 0xe5
     tiles[14 * 20 + 2] = 0xb6
-    tiles[14 * 20 + 4] = 0xcd // へ / ヘ
-    tiles[16 * 20 + 1] = 0xb1 // あ
-    tiles[16 * 20 + 2] = 0x79 // box corner -> space
-    const read = async (address: number, length: number): Promise<Uint8Array> => {
-      calls.push([address, length])
-      return address === 0x134 ? header(revision) : tiles
-    }
-    const result = await createReadScreenText(read)()
-    expect(calls).toEqual([[0x134, 28], [0xc3a0, 360]])
-    expect(result?.lines).toEqual([
-      { y: 14, text: '  が へ' + ' '.repeat(15) },
-      { y: 16, text: ' あ' + ' '.repeat(18) },
-    ])
+    tiles[14 * 20 + 4] = 0xcd
+    tiles[16 * 20 + 1] = 0xb1
+    tiles[16 * 20 + 2] = 0x79
+
+    const readMemory = vi
+      .fn()
+      .mockResolvedValueOnce(makeHeader(revision))
+      .mockResolvedValueOnce(tiles)
+    const result = await createReadScreenText(readMemory)()
+
+    expect({
+      calls: readMemory.mock.calls,
+      lines: result?.lines,
+    }).toStrictEqual({
+      calls: [
+        [0x134, 28],
+        [0xc3a0, 360],
+      ],
+      lines: [
+        { y: 14, text: '  が へ'.padEnd(20, ' ') },
+        { y: 16, text: ' あ'.padEnd(20, ' ') },
+      ],
+    })
   })
 
   test('半濁点を合成し、合成不能な濁点は維持する', async () => {
@@ -41,29 +50,32 @@ describe('read-screen-text', () => {
     tiles[3 * 20] = 0xca
     tiles[2 * 20 + 1] = 0xe5
     tiles[3 * 20 + 1] = 0xb1
-    const read = async (address: number): Promise<Uint8Array> =>
-      address === 0x134 ? header() : tiles
-    const result = await createReadScreenText(read)()
-    expect(result?.lines).toEqual([
-      { y: 2, text: ' ゛' + ' '.repeat(18) },
-      { y: 3, text: 'ぱあ' + ' '.repeat(18) },
+
+    const readMemory = vi
+      .fn()
+      .mockResolvedValueOnce(makeHeader())
+      .mockResolvedValueOnce(tiles)
+    const result = await createReadScreenText(readMemory)()
+    expect(result?.lines).toStrictEqual([
+      { y: 2, text: ' ゛'.padEnd(20, ' ') },
+      { y: 3, text: 'ぱあ'.padEnd(20, ' ') },
     ])
   })
 
   test('未対応ROMはタイル配列を読み出さない', async () => {
-    const calls: number[] = []
-    const read = async (address: number, length: number): Promise<Uint8Array> => {
-      calls.push(address)
-      return new Uint8Array(length)
-    }
-    expect(await createReadScreenText(read)()).toBeUndefined()
-    expect(calls).toEqual([0x134])
+    const readMemory = vi.fn().mockResolvedValueOnce(new Uint8Array(28))
+    const result = await createReadScreenText(readMemory)()
+    expect({
+      result,
+      calls: readMemory.mock.calls,
+    }).toStrictEqual({
+      result: undefined,
+      calls: [[0x134, 28]],
+    })
   })
 
   test('読み出しエラーは伝播する', async () => {
-    const read = async (): Promise<Uint8Array> => {
-      throw new Error('read failed')
-    }
-    await expect(createReadScreenText(read)()).rejects.toThrow('read failed')
+    const readMemory = vi.fn().mockRejectedValueOnce(new Error('read failed'))
+    await expect(createReadScreenText(readMemory)()).rejects.toThrow('read failed')
   })
 })
