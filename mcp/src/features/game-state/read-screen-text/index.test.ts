@@ -16,7 +16,9 @@ const makeHeader = (revision = 0): Uint8Array => {
 }
 
 describe('read-screen-text', () => {
-  test.each([0, 1])('日本版赤 revision %i のWRAMタイルを復号する', async (revision) => {
+  test.each([0, 1])(
+    '日本版赤 revision %i のWRAMタイルを復号する',
+    async (revision) => {
     const tiles = new Uint8Array(360).fill(0x7f)
     tiles[13 * 20 + 2] = 0xe5
     tiles[14 * 20 + 2] = 0xb6
@@ -42,8 +44,8 @@ describe('read-screen-text', () => {
         { 'y': 14, text: '  が へ'.padEnd(20, ' ') },
         { 'y': 16, text: ' あ'.padEnd(20, ' ') },
       ],
-    })
-  })
+    },
+  )
 
   test('半濁点を合成し、合成不能な濁点は維持する', async () => {
     const tiles = new Uint8Array(360).fill(0x7f)
@@ -64,7 +66,9 @@ describe('read-screen-text', () => {
   })
 
   test('未対応ROMはタイル配列を読み出さない', async () => {
-    const readMemory = vi.fn<ReadMemory>().mockResolvedValueOnce(new Uint8Array(28))
+    const readMemory = vi
+      .fn<ReadMemory>()
+      .mockResolvedValueOnce(new Uint8Array(28))
     const result = await createReadScreenText(readMemory)()
     expect({
       result,
@@ -76,7 +80,11 @@ describe('read-screen-text', () => {
   })
 
   test('読み出しエラーは伝播する', async () => {
-    const readMemory = vi.fn<ReadMemory>().mockRejectedValueOnce(new Error('read failed'))
-    await expect(createReadScreenText(readMemory)()).rejects.toThrow('read failed')
+    const readMemory = vi
+      .fn<ReadMemory>()
+      .mockRejectedValueOnce(new Error('read failed'))
+    await expect(createReadScreenText(readMemory)()).rejects.toThrow(
+      'read failed',
+    )
   })
 })
