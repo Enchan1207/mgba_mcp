@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest'
 
 import { createReadScreenText } from '.'
+import type { ReadMemory } from '.'
 
 const makeHeader = (revision = 0): Uint8Array => {
   const bytes = new Uint8Array(28)
@@ -24,7 +25,7 @@ describe('read-screen-text', () => {
     tiles[16 * 20 + 2] = 0x79
 
     const readMemory = vi
-      .fn()
+      .fn<ReadMemory>()
       .mockResolvedValueOnce(makeHeader(revision))
       .mockResolvedValueOnce(tiles)
     const result = await createReadScreenText(readMemory)()
@@ -38,8 +39,8 @@ describe('read-screen-text', () => {
         [0xc3a0, 360],
       ],
       lines: [
-        { y: 14, text: '  が へ'.padEnd(20, ' ') },
-        { y: 16, text: ' あ'.padEnd(20, ' ') },
+        { 'y': 14, text: '  が へ'.padEnd(20, ' ') },
+        { 'y': 16, text: ' あ'.padEnd(20, ' ') },
       ],
     })
   })
@@ -52,18 +53,18 @@ describe('read-screen-text', () => {
     tiles[3 * 20 + 1] = 0xb1
 
     const readMemory = vi
-      .fn()
+      .fn<ReadMemory>()
       .mockResolvedValueOnce(makeHeader())
       .mockResolvedValueOnce(tiles)
     const result = await createReadScreenText(readMemory)()
     expect(result?.lines).toStrictEqual([
-      { y: 2, text: ' ゛'.padEnd(20, ' ') },
-      { y: 3, text: 'ぱあ'.padEnd(20, ' ') },
+      { 'y': 2, text: ' ゛'.padEnd(20, ' ') },
+      { 'y': 3, text: 'ぱあ'.padEnd(20, ' ') },
     ])
   })
 
   test('未対応ROMはタイル配列を読み出さない', async () => {
-    const readMemory = vi.fn().mockResolvedValueOnce(new Uint8Array(28))
+    const readMemory = vi.fn<ReadMemory>().mockResolvedValueOnce(new Uint8Array(28))
     const result = await createReadScreenText(readMemory)()
     expect({
       result,
@@ -75,7 +76,7 @@ describe('read-screen-text', () => {
   })
 
   test('読み出しエラーは伝播する', async () => {
-    const readMemory = vi.fn().mockRejectedValueOnce(new Error('read failed'))
+    const readMemory = vi.fn<ReadMemory>().mockRejectedValueOnce(new Error('read failed'))
     await expect(createReadScreenText(readMemory)()).rejects.toThrow('read failed')
   })
 })
