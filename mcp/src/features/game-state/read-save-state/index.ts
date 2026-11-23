@@ -1,3 +1,4 @@
+// oxlint-disable no-bitwise -- ROM flags, packed PP, and 16-bit words are binary formats
 import { decodeJapaneseGlyph } from '../read-screen-text'
 
 // Japanese Pokémon Red (v1.0/v1.1) WRAM state readers.
@@ -32,7 +33,7 @@ const supported = async (read: ReadMemory) => {
 export const decodeName = (data: Uint8Array) => {
   const chars: string[] = []
   for (const byte of data) {
-    if (byte === 0x50 || byte === 0x00) break
+    if (byte === 0x50 || byte === 0x00) { break }
     chars.push(decodeJapaneseGlyph(byte) ?? `\\x${byte.toString(16).padStart(2, '0')}`)
   }
   return chars.join('')
@@ -45,7 +46,7 @@ export const decodeBcd = (bytes: Uint8Array) => {
   let value = 0
   for (const byte of bytes) {
     const high = byte >>> 4, low = byte & 15
-    if (high > 9 || low > 9) throw new Error('BCD表現が不正です')
+    if (high > 9 || low > 9) { throw new Error('BCD表現が不正です') }
     value = value * 100 + high * 10 + low
   }
   return value
@@ -54,7 +55,7 @@ export const decodeBcd = (bytes: Uint8Array) => {
 // Gen I internal species IDs are not Pokédex order. '-' is MissingNo.
 const speciesNames = `Rhydon|Kangaskhan|Nidoran♂|Clefairy|Spearow|Voltorb|Nidoking|Slowbro|Ivysaur|Exeggutor|Lickitung|Exeggcute|Grimer|Gengar|Nidoran♀|Nidoqueen|Cubone|Rhyhorn|Lapras|Arcanine|Mew|Gyarados|Shellder|Tentacool|Gastly|Scyther|Staryu|Blastoise|Pinsir|Tangela|-|-|Growlithe|Onix|Fearow|Pidgey|Slowpoke|Kadabra|Graveler|Chansey|Machoke|Mr. Mime|Hitmonlee|Hitmonchan|Arbok|Parasect|Psyduck|Drowzee|Golem|-|Magmar|-|Electabuzz|Magneton|Koffing|-|Mankey|Seel|Diglett|Tauros|-|-|-|Farfetch'd|Venonat|Dragonite|-|-|-|Doduo|Poliwag|Jynx|Moltres|Articuno|Zapdos|Ditto|Meowth|Krabby|-|-|-|Vulpix|Ninetales|Pikachu|Raichu|-|-|Dratini|Dragonair|Kabuto|Kabutops|Horsea|Seadra|-|-|Sandshrew|Sandslash|Omanyte|Omastar|Jigglypuff|Wigglytuff|Eevee|Flareon|Jolteon|Vaporeon|Machop|Zubat|Ekans|Paras|Poliwhirl|Poliwrath|Weedle|Kakuna|Beedrill|-|Dodrio|Primeape|Dugtrio|Venomoth|Dewgong|-|-|Caterpie|Metapod|Butterfree|Machamp|-|Golduck|Hypno|Golbat|Mewtwo|Snorlax|Magikarp|-|-|Muk|-|Kingler|Cloyster|-|Electrode|Clefable|Weezing|Persian|Marowak|-|Haunter|Abra|Alakazam|Pidgeotto|Pidgeot|Starmie|Bulbasaur|Venusaur|Tentacruel|-|Goldeen|Seaking|-|-|-|-|Ponyta|Rapidash|Rattata|Raticate|Nidorino|Nidorina|Geodude|Porygon|Aerodactyl|-|Magnemite|-|-|Charmander|Squirtle|Charmeleon|Wartortle|Charizard|-|-|-|-|Oddish|Gloom|Vileplume|Bellsprout|Weepinbell|Victreebel`.split('|')
 export const speciesName = (id: number): string | null =>
-  speciesNames[id - 1] === undefined || speciesNames[id - 1] === '-' ? null : speciesNames[id - 1]!
+  speciesNames[id - 1] === undefined || speciesNames[id - 1] === '-' ? null : speciesNames[id - 1] ?? null
 
 // IDs 1..165 are the canonical Generation I move indices.
 const moveNames = `Pound|Karate Chop|Double Slap|Comet Punch|Mega Punch|Pay Day|Fire Punch|Ice Punch|Thunder Punch|Scratch|Vice Grip|Guillotine|Razor Wind|Swords Dance|Cut|Gust|Wing Attack|Whirlwind|Fly|Bind|Slam|Vine Whip|Stomp|Double Kick|Mega Kick|Jump Kick|Rolling Kick|Sand Attack|Headbutt|Horn Attack|Fury Attack|Horn Drill|Tackle|Body Slam|Wrap|Take Down|Thrash|Double-Edge|Tail Whip|Poison Sting|Twineedle|Pin Missile|Leer|Bite|Growl|Roar|Sing|Supersonic|Sonic Boom|Disable|Acid|Ember|Flamethrower|Mist|Water Gun|Hydro Pump|Surf|Ice Beam|Blizzard|Psybeam|Bubble Beam|Aurora Beam|Hyper Beam|Peck|Drill Peck|Submission|Low Kick|Counter|Seismic Toss|Strength|Absorb|Mega Drain|Leech Seed|Growth|Razor Leaf|Solar Beam|Poison Powder|Stun Spore|Sleep Powder|Petal Dance|String Shot|Dragon Rage|Fire Spin|Thunder Shock|Thunderbolt|Thunder Wave|Thunder|Rock Throw|Earthquake|Fissure|Dig|Toxic|Confusion|Psychic|Hypnosis|Meditate|Agility|Quick Attack|Rage|Teleport|Night Shade|Mimic|Screech|Double Team|Recover|Harden|Minimize|Smokescreen|Confuse Ray|Withdraw|Defense Curl|Barrier|Light Screen|Haze|Reflect|Focus Energy|Bide|Metronome|Mirror Move|Self-Destruct|Egg Bomb|Lick|Smog|Sludge|Bone Club|Fire Blast|Waterfall|Clamp|Swift|Skull Bash|Spike Cannon|Constrict|Amnesia|Kinesis|Soft-Boiled|High Jump Kick|Glare|Dream Eater|Poison Gas|Barrage|Leech Life|Lovely Kiss|Sky Attack|Transform|Bubble|Dizzy Punch|Spore|Flash|Psywave|Splash|Acid Armor|Crabhammer|Explosion|Fury Swipes|Bonemerang|Rest|Rock Slide|Hyper Fang|Sharpen|Conversion|Tri Attack|Super Fang|Slash|Substitute|Struggle`.split('|')
@@ -62,13 +63,13 @@ export const moveName = (id: number): string | null => id >= 1 && id <= 165 ? (m
 
 const itemNames = `Master Ball|Ultra Ball|Great Ball|Poké Ball|Town Map|Bicycle|Surfboard|Safari Ball|Pokédex|Moon Stone|Antidote|Burn Heal|Ice Heal|Awakening|Parlyz Heal|Full Restore|Max Potion|Hyper Potion|Super Potion|Potion|BoulderBadge|CascadeBadge|ThunderBadge|RainbowBadge|SoulBadge|MarshBadge|VolcanoBadge|EarthBadge|Escape Rope|Repel|Old Amber|Fire Stone|Thunder Stone|Water Stone|HP Up|Protein|Iron|Carbos|Calcium|Rare Candy|Dome Fossil|Helix Fossil|Secret Key`.split('|')
 export const itemName = (id: number): string | null => {
-  if (id >= 0xc4 && id <= 0xc8) return `HM${String(id - 0xc3).padStart(2, '0')}`
-  if (id >= 0xc9 && id <= 0xfa) return `TM${String(id - 0xc8).padStart(2, '0')}`
+  if (id >= 0xc4 && id <= 0xc8) { return `HM${String(id - 0xc3).padStart(2, '0')}` }
+  if (id >= 0xc9 && id <= 0xfa) { return `TM${String(id - 0xc8).padStart(2, '0')}` }
   return itemNames[id - 1] ?? null
 }
 
 export const readPlayerState = async (read: ReadMemory) => {
-  if (!await supported(read)) return null
+  if (!(await supported(read))) { return null }
   const [name, location, money, badges] = await Promise.all([
     readExact(read, 0xd11d, 6), readExact(read, 0xd2dd, 5),
     readExact(read, 0xd2cb, 3), readExact(read, 0xd2d5, 1),
@@ -76,57 +77,57 @@ export const readPlayerState = async (read: ReadMemory) => {
   const flags = badges[0] ?? 0
   return {
     name: decodeName(name),
-    mapId: location[0]!,
-    x: location[4]!,
-    y: location[3]!,
+    mapId: location[0] ?? 0,
+    x: location[4] ?? 0,
+    y: location[3] ?? 0,
     money: decodeBcd(money),
-    badges: Array.from({ length: 8 }, (_, index) => (flags & (1 << index)) !== 0),
+    badges: Array.from({ length: 8 }, (_unused, index) => (flags & (1 << index)) !== 0),
   }
 }
 
 export const readPartyState = async (read: ReadMemory) => {
-  if (!await supported(read)) return null
+  if (!(await supported(read))) { return null }
   const heading = await readExact(read, 0xd123, 8)
-  const count = heading[0]!
-  if (count > 6) throw new Error(`手持ち数が不正です: ${count}`)
-  if (heading[count + 1] !== 0xff) throw new Error('手持ち終端が不正です')
-  if (count === 0) return { pokemon: [], warning: '戦闘中のHP・PPは手持ち領域に未反映の場合があります' }
+  const count = heading[0] ?? 0
+  if (count > 6) { throw new Error(`手持ち数が不正です: ${count}`) }
+  if (heading[count + 1] !== 0xff) { throw new Error('手持ち終端が不正です') }
+  if (count === 0) { return { pokemon: [], warning: '戦闘中のHP・PPは手持ち領域に未反映の場合があります' } }
   const [entries, nicknames] = await Promise.all([
     readExact(read, 0xd12b, count * 44),
     readExact(read, 0xd257, count * 6),
   ])
   const pokemon = Array.from({ length: count }, (_, index) => {
     const mon = entries.subarray(index * 44, (index + 1) * 44)
-    const speciesId = mon[0]!
-    if (speciesId !== heading[index + 1]) throw new Error('手持ち種族IDが一致しません')
-    const moves = Array.from({ length: 4 }, (_, slot) => {
-      const id = mon[8 + slot]!
-      if (id === 0) return null
-      return { id, name: moveName(id), pp: mon[29 + slot]! & 0x3f, ppUps: mon[29 + slot]! >>> 6 }
+    const speciesId = mon[0] ?? 0
+    if (speciesId !== heading[index + 1]) { throw new Error('手持ち種族IDが一致しません') }
+    const moves = Array.from({ length: 4 }, (_unused, slot) => {
+      const moveId = mon[8 + slot] ?? 0
+      if (moveId === 0) { return null }
+      return { id: moveId, name: moveName(moveId), pp: (mon[29 + slot] ?? 0) & 0x3f, ppUps: mon[29 + slot]! >>> 6 }
     }).filter((move) => move !== null)
     const hp = u16(mon, 1), maxHp = u16(mon, 34)
     return {
       position: index, speciesId, species: speciesName(speciesId),
       nickname: decodeName(nicknames.subarray(index * 6, (index + 1) * 6)),
-      level: mon[33]!, hp, maxHp, status: mon[4]!, moves,
+      level: mon[33] ?? 0, hp, maxHp, status: mon[4]!, moves,
     }
   })
   return { pokemon, warning: '戦闘中のHP・PPは手持ち領域に未反映の場合があります' }
 }
 
 export const readBagState = async (read: ReadMemory) => {
-  if (!await supported(read)) return null
+  if (!(await supported(read))) { return null }
   const countBytes = await readExact(read, 0xd2a1, 1)
-  const count = countBytes[0]!
-  if (count > 20) throw new Error(`バッグの道具数が不正です: ${count}`)
-  if (count === 0) return { items: [] }
+  const count = countBytes[0] ?? 0
+  if (count > 20) { throw new Error(`バッグの道具数が不正です: ${count}`) }
+  if (count === 0) { return { items: [] } }
   const entries = await readExact(read, 0xd2a2, count * 2 + 1)
-  if (entries[count * 2] !== 0xff) throw new Error('バッグ終端が不正です')
+  if (entries[count * 2] !== 0xff) { throw new Error('バッグ終端が不正です') }
   return {
     items: Array.from({ length: count }, (_, index) => {
-      const id = entries[index * 2]!, quantity = entries[index * 2 + 1]!
-      if (id === 0 || id === 0xff || quantity === 0) throw new Error('バッグの道具データが不正です')
-      return { position: index, id, name: itemName(id), quantity }
+      const itemId = entries[index * 2] ?? 0, quantity = entries[index * 2 + 1] ?? 0
+      if (itemId === 0 || itemId === 0xff || quantity === 0) { throw new Error('バッグの道具データが不正です') }
+      return { position: index, id: itemId, name: itemName(itemId), quantity }
     }),
   }
 }
