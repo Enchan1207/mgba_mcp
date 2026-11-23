@@ -1,3 +1,4 @@
+// oxlint-disable id-length -- Kana glyph keys and the screen row coordinate are single-character identifiers
 import { describe, expect, test, vi } from 'vitest'
 
 import type { ReadMemory } from '.'
@@ -41,8 +42,8 @@ describe('read-screen-text', () => {
           [0xc3a0, 360],
         ],
         lines: [
-          { 'y': 14, text: '  が へ'.padEnd(20, ' ') },
-          { 'y': 16, text: ' あ'.padEnd(20, ' ') },
+          { y: 14, text: '  が へ'.padEnd(20, ' ') },
+          { y: 16, text: ' あ'.padEnd(20, ' ') },
         ],
       })
     },
@@ -61,8 +62,8 @@ describe('read-screen-text', () => {
       .mockResolvedValueOnce(tiles)
     const result = await createReadScreenText(readMemory)()
     expect(result?.lines).toStrictEqual([
-      { 'y': 2, text: ' ゛'.padEnd(20, ' ') },
-      { 'y': 3, text: 'ぱあ'.padEnd(20, ' ') },
+      { y: 2, text: ' ゛'.padEnd(20, ' ') },
+      { y: 3, text: 'ぱあ'.padEnd(20, ' ') },
     ])
   })
 
