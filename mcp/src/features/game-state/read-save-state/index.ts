@@ -1,4 +1,4 @@
-// oxlint-disable no-bitwise -- ROM flags, packed PP, and 16-bit words are binary formats
+// oxlint-disable no-bitwise, id-length -- packed binary formats and map coordinate keys
 import { decodeJapaneseGlyph } from '../read-screen-text'
 
 // Japanese Pokémon Red (v1.0/v1.1) WRAM state readers.
@@ -102,7 +102,7 @@ export const readPartyState = async (read: ReadMemory) => {
     const mon = entries.subarray(index * 44, (index + 1) * 44)
     const speciesId = mon[0] ?? 0
     if (speciesId !== heading[index + 1]) { throw new Error('手持ち種族IDが一致しません') }
-    const moves = Array.from({ length: 4 }, (_unused, slot) => {
+    const moves = Array.from({ length: 4 }, (_unusedMove, slot) => {
       const moveId = mon[8 + slot] ?? 0
       if (moveId === 0) { return null }
       return { id: moveId, name: moveName(moveId), pp: (mon[29 + slot] ?? 0) & 0x3f, ppUps: (mon[29 + slot] ?? 0) >>> 6 }
